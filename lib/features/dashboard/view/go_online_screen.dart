@@ -253,6 +253,10 @@ class GoOnlineScreen extends StatelessWidget {
   }
 
   Widget _buildAutoAcceptBanner(BuildContext context) {
+    final dashboard = context.watch<DashboardProvider>();
+    final enabled = dashboard.isAutoAcceptEnabled;
+    final updating = dashboard.isUpdatingAutoAccept;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -277,22 +281,22 @@ class GoOnlineScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Auto-Accept is off',
-                    style: TextStyle(
+                    dashboard.autoAcceptTitle,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: _textDark,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Turn it on to get orders automatically',
-                    style: TextStyle(
+                    dashboard.autoAcceptSubtitle,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
                       color: _subtitleColor,
@@ -306,20 +310,47 @@ class GoOnlineScreen extends StatelessWidget {
               color: _enableOrange,
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
-                onTap: () {
-                  Navigator.pushNamed(context, RouteNames.newRequest);
-                },
+                onTap: updating
+                    ? null
+                    : () async {
+                        final provider = context.read<DashboardProvider>();
+                        final ok = await provider
+                            .setAutoAcceptEnabled(!enabled);
+                        if (!context.mounted) return;
+                        if (!ok) {
+                          final message = provider.error ??
+                              'Failed to update auto-accept';
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              SnackBar(
+                                content: Text(message),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                        }
+                      },
                 borderRadius: BorderRadius.circular(10),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Text(
-                    'Enable',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: updating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          enabled ? 'Disable' : 'Enable',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ),

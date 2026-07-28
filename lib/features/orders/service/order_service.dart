@@ -1,6 +1,33 @@
+import 'package:yjeek_driver/core/constants/api_endpoints.dart';
+import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 class OrderService {
+  OrderService({ApiService? apiService})
+      : _api = apiService ?? ApiService.instance;
+
+  final ApiService _api;
+
+  Future<List<JobOfferModel>> getJobOffers() async {
+    final response = await _api.get(ApiEndpoints.jobOffers);
+
+    if (response['success'] != true) {
+      final message = response['message']?.toString();
+      throw ApiException(
+        (message != null && message.trim().isNotEmpty)
+            ? message.trim()
+            : 'Failed to load job offers',
+      );
+    }
+
+    try {
+      return JobOfferModel.listFromResponse(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
   Future<List<OrderModel>> getOrders() async {
     await Future.delayed(const Duration(milliseconds: 800));
     final now = DateTime.now();
@@ -72,19 +99,25 @@ class OrderService {
   }
 
   Future<OrderModel> getNewRequest() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final offers = await getJobOffers();
+    if (offers.isEmpty) {
+      throw ApiException('No delivery offers available');
+    }
+    return _toOrderModel(offers.first);
+  }
+
+  OrderModel _toOrderModel(JobOfferModel offer) {
     return OrderModel(
-      id: '#ORD-NEW',
-      pickupAddress: 'Sushi Express, 15 Harbor Lane',
-      dropoffAddress: '88 Riverside Blvd',
-      customerName: 'Emma Davis',
-      vendorName: 'Sushi Express',
-      status: 'New',
-      price: 14.25,
-      distance: 4.5,
+      id: offer.id,
+      pickupAddress: offer.pickupSubtitle,
+      dropoffAddress: offer.dropoffSubtitle,
+      customerName: offer.customerName,
+      vendorName: offer.vendorName,
+      status: offer.status,
+      price: offer.driverEarnings,
+      distance: offer.distanceKm,
       createdAt: DateTime.now(),
-      items: ['Salmon Roll', 'Miso Soup'],
-      paymentStatus: 'Paid',
+      paymentStatus: offer.paymentMethod,
     );
   }
 }

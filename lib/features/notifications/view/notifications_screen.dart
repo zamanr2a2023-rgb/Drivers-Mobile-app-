@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/notifications/model/notification_model.dart';
+import 'package:yjeek_driver/features/notifications/provider/notification_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -29,77 +32,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   static const String _performanceIcon = 'assets/images/Performans_icon.png';
   static const String _accountIcon = 'assets/images/Account_icon.png';
 
-  static const List<_NotifItem> _today = [
-    _NotifItem(
-      title: 'Account suspended',
-      body:
-          'Your account has been suspended. Tap to see why and how to reactivate.',
-      time: 'now',
-      unread: true,
-      iconBg: Color(0xFFFFE4E4),
-      iconAsset: 'assets/images/notif_account_suspended.png',
-      iconSize: 27,
-      detailsType: _NotificationDetailsType.accountSuspended,
-    ),
-    _NotifItem(
-      title: 'Performance alert',
-      body:
-          'Your RPI dropped below 62. Improve acceptance & completion to avoid suspension.',
-      time: '1h',
-      unread: true,
-      iconBg: Color(0xFFFFF2CF),
-      iconAsset: 'assets/images/notif_performance.png',
-      iconSize: 31,
-      detailsType: _NotificationDetailsType.performanceAlert,
-    ),
-    _NotifItem(
-      title: 'New scheduled order offered',
-      body:
-          'VEERA → Juffair · tomorrow 1–3 PM. Respond within 47 min or it’s reassigned.',
-      time: '2m',
-      unread: true,
-      iconBg: Color(0xFFEAFBF0),
-      iconAsset: 'assets/images/calendar_jul_17.png',
-      iconSize: 27,
-    ),
-    _NotifItem(
-      title: 'Double-confirm needed',
-      body: 'Re-confirm order #YJK-...52 within 15 minutes to keep it.',
-      time: '18m',
-      unread: true,
-      iconBg: Color(0xFFFFF1D8),
-      iconAsset: 'assets/images/notif_alarm.png',
-      iconSize: 31,
-    ),
-  ];
-
-  static const List<_NotifItem> _earlier = [
-    _NotifItem(
-      title: 'Document expiring',
-      body:
-          'Your vehicle insurance expires in 14 days. Upload the renewal to stay online.',
-      time: 'Yesterday',
-      unread: false,
-      iconBg: Color(0xFFFFF1D8),
-      iconAsset: 'assets/images/notif_document.png',
-      iconSize: 31,
-    ),
-    _NotifItem(
-      title: 'Incident resolved',
-      body: 'Your report RP-2026-10499 was resolved — no fault recorded.',
-      time: '2d',
-      unread: false,
-      iconBg: Color(0xFFFFE8E8),
-      iconAsset: 'assets/images/notif_incident.png',
-      iconSize: 31,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationProvider>().loadNotifications();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final routeName = ModalRoute.of(context)?.settings.name;
     final showLocalBottomNav =
         routeName == null || routeName == RouteNames.notifications;
+    final provider = context.watch<NotificationProvider>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -118,27 +65,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Header(onBack: _handleBack),
+              _Header(
+                onBack: _handleBack,
+                showMarkAll: provider.hasUnread,
+                isMarkingAll: provider.isMarkingAllRead,
+                onMarkAll: _handleMarkAllAsRead,
+              ),
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 22),
-                  children: [
-                    const _SectionLabel('TODAY'),
-                    const SizedBox(height: 18),
-                    _NotificationCard(item: _today[0]),
-                    const SizedBox(height: 14),
-                    _NotificationCard(item: _today[1]),
-                    const SizedBox(height: 14),
-                    _NotificationCard(item: _today[2]),
-                    const SizedBox(height: 14),
-                    _NotificationCard(item: _today[3]),
-                    const SizedBox(height: 24),
-                    const _SectionLabel('EARLIER'),
-                    const SizedBox(height: 18),
-                    _NotificationCard(item: _earlier[0]),
-                    const SizedBox(height: 14),
-                    _NotificationCard(item: _earlier[1]),
-                  ],
+                child: RefreshIndicator(
+                  color: const Color(0xFF4CAF50),
+                  onRefresh: () =>
+                      context.read<NotificationProvider>().loadNotifications(),
+                  child: _buildBody(provider),
                 ),
               ),
             ],
@@ -148,11 +86,251 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  Widget _buildBody(NotificationProvider provider) {
+    if (provider.isLoading && provider.notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 120),
+          Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF4CAF50),
+              strokeWidth: 2.5,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (provider.error != null && provider.notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 22),
+        children: [
+          Text(
+            provider.error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _textMuted,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  context.read<NotificationProvider>().loadNotifications(),
+              child: const Text('Retry'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final today = provider.today.map(_mapToItem).toList(growable: false);
+    final earlier = provider.earlier.map(_mapToItem).toList(growable: false);
+    final isEmpty = today.isEmpty && earlier.isEmpty;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 22),
+      children: [
+        if (isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 48),
+            child: Text(
+              'No notifications yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          )
+        else ...[
+          if (today.isNotEmpty) ...[
+            const _SectionLabel('TODAY'),
+            const SizedBox(height: 18),
+            ..._buildCards(today),
+            if (earlier.isNotEmpty) const SizedBox(height: 24),
+          ],
+          if (earlier.isNotEmpty) ...[
+            const _SectionLabel('EARLIER'),
+            const SizedBox(height: 18),
+            ..._buildCards(earlier),
+          ],
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _buildCards(List<_NotifItem> items) {
+    final widgets = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      if (i > 0) widgets.add(const SizedBox(height: 14));
+      widgets.add(
+        _NotificationCard(
+          item: items[i],
+          onTap: () => _handleNotificationTap(items[i]),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  _NotifItem _mapToItem(NotificationModel notification) {
+    final style = _styleForType(notification.type);
+    return _NotifItem(
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      time: notification.displayTime,
+      unread: !notification.isRead,
+      iconBg: style.iconBg,
+      iconAsset: style.iconAsset,
+      iconSize: style.iconSize,
+      detailsType: style.detailsType,
+    );
+  }
+
+  _NotifVisualStyle _styleForType(String type) {
+    final key = type.toUpperCase();
+
+    if (key.contains('SUSPEND') || key.contains('ACCOUNT_SUSPENDED')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFFFE4E4),
+        iconAsset: 'assets/images/notif_account_suspended.png',
+        iconSize: 27,
+        detailsType: _NotificationDetailsType.accountSuspended,
+      );
+    }
+    if (key.contains('PERFORMANCE') || key.contains('RPI')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFFFF2CF),
+        iconAsset: 'assets/images/notif_performance.png',
+        iconSize: 31,
+        detailsType: _NotificationDetailsType.performanceAlert,
+      );
+    }
+    if (key.contains('SCHEDULE') || key.contains('CALENDAR')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFEAFBF0),
+        iconAsset: 'assets/images/calendar_jul_17.png',
+        iconSize: 27,
+      );
+    }
+    if (key.contains('CONFIRM') ||
+        key.contains('ALARM') ||
+        key.contains('REMINDER')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFFFF1D8),
+        iconAsset: 'assets/images/notif_alarm.png',
+        iconSize: 31,
+      );
+    }
+    if (key.contains('DOCUMENT') ||
+        key.contains('EXPIR') ||
+        key.contains('LICENSE') ||
+        key.contains('INSURANCE')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFFFF1D8),
+        iconAsset: 'assets/images/notif_document.png',
+        iconSize: 31,
+      );
+    }
+    if (key.contains('INCIDENT') || key.contains('SAFETY')) {
+      return const _NotifVisualStyle(
+        iconBg: Color(0xFFFFE8E8),
+        iconAsset: 'assets/images/notif_incident.png',
+        iconSize: 31,
+      );
+    }
+
+    return const _NotifVisualStyle(
+      iconBg: Color(0xFFEAFBF0),
+      iconAsset: 'assets/images/notif_performance.png',
+      iconSize: 31,
+    );
+  }
+
   void _handleBack() {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }
   }
+
+  Future<void> _handleMarkAllAsRead() async {
+    final provider = context.read<NotificationProvider>();
+    final ok = await provider.markAllAsRead();
+    if (!mounted) return;
+    if (!ok) {
+      final message = provider.error ?? 'Failed to mark notifications as read';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
+
+  Future<void> _handleNotificationTap(_NotifItem item) async {
+    if (item.unread) {
+      final provider = context.read<NotificationProvider>();
+      final ok = await provider.markOneAsRead(item.id);
+      if (!mounted) return;
+      if (!ok) {
+        final message =
+            provider.error ?? 'Failed to mark notification as read';
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(message),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+    }
+
+    if (!mounted) return;
+    final type = item.detailsType;
+    if (type == _NotificationDetailsType.accountSuspended) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const _AccountSuspendedDetailsScreen(),
+        ),
+      );
+      return;
+    }
+    if (type == _NotificationDetailsType.performanceAlert) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const _PerformanceAlertDetailsScreen(),
+        ),
+      );
+    }
+  }
+}
+
+class _NotifVisualStyle {
+  const _NotifVisualStyle({
+    required this.iconBg,
+    required this.iconAsset,
+    required this.iconSize,
+    this.detailsType,
+  });
+
+  final Color iconBg;
+  final String iconAsset;
+  final double iconSize;
+  final _NotificationDetailsType? detailsType;
 }
 
 enum _NotificationDetailsType {
@@ -161,9 +339,17 @@ enum _NotificationDetailsType {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
+  const _Header({
+    required this.onBack,
+    required this.showMarkAll,
+    required this.isMarkingAll,
+    required this.onMarkAll,
+  });
 
   final VoidCallback onBack;
+  final bool showMarkAll;
+  final bool isMarkingAll;
+  final VoidCallback onMarkAll;
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +379,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 52),
+            padding: EdgeInsets.symmetric(horizontal: 72),
             child: Text(
               'Notifications',
               textAlign: TextAlign.center,
@@ -207,6 +393,37 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
+          if (showMarkAll)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: isMarkingAll ? null : onMarkAll,
+                style: TextButton.styleFrom(
+                  foregroundColor: _NotificationsScreenState._unreadBlue,
+                  disabledForegroundColor: _NotificationsScreenState._textMuted,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: isMarkingAll
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _NotificationsScreenState._unreadBlue,
+                        ),
+                      )
+                    : const Text(
+                        'Mark all',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+              ),
+            ),
         ],
       ),
     );
@@ -234,6 +451,7 @@ class _SectionLabel extends StatelessWidget {
 
 class _NotifItem {
   const _NotifItem({
+    required this.id,
     required this.title,
     required this.body,
     required this.time,
@@ -244,6 +462,7 @@ class _NotifItem {
     this.detailsType,
   });
 
+  final String id;
   final String title;
   final String body;
   final String time;
@@ -255,9 +474,13 @@ class _NotifItem {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item});
+  const _NotificationCard({
+    required this.item,
+    required this.onTap,
+  });
 
   final _NotifItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -348,38 +571,13 @@ class _NotificationCard extends StatelessWidget {
       ),
     );
 
-    if (item.detailsType == null) {
-      return card;
-    }
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _openDetails(context),
+        onTap: onTap,
         child: card,
       ),
     );
-  }
-
-  void _openDetails(BuildContext context) {
-    final type = item.detailsType;
-    if (type == _NotificationDetailsType.accountSuspended) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const _AccountSuspendedDetailsScreen(),
-        ),
-      );
-      return;
-    }
-    if (type == _NotificationDetailsType.performanceAlert) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const _PerformanceAlertDetailsScreen(),
-        ),
-      );
-    }
   }
 }
 

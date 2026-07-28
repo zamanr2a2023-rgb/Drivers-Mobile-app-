@@ -1,14 +1,23 @@
 import 'package:flutter/foundation.dart';
+import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/features/orders/service/order_service.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 class OrderProvider extends ChangeNotifier {
-  final OrderService _orderService = OrderService();
+  OrderProvider({OrderService? orderService})
+      : _orderService = orderService ?? OrderService();
+
+  final OrderService _orderService;
 
   bool _isLoading = false;
+  bool _isLoadingOffers = false;
   List<OrderModel> _orders = [];
+  List<JobOfferModel> _offers = const [];
   OrderModel? _currentOrder;
   OrderModel? _newRequest;
+  JobOfferModel? _currentOffer;
+  String? _offersError;
   String _filter = 'Active';
   int _deliveryStep = 0;
 
@@ -20,16 +29,23 @@ class OrderProvider extends ChangeNotifier {
   ];
 
   bool get isLoading => _isLoading;
+  bool get isLoadingOffers => _isLoadingOffers;
   List<OrderModel> get orders => _orders;
+  List<JobOfferModel> get offers => _offers;
   OrderModel? get currentOrder => _currentOrder;
   OrderModel? get newRequest => _newRequest;
+  JobOfferModel? get currentOffer => _currentOffer;
+  String? get offersError => _offersError;
   String get filter => _filter;
   int get deliveryStep => _deliveryStep;
-  String get currentStepLabel => deliverySteps[_deliveryStep.clamp(0, deliverySteps.length - 1)];
+  String get currentStepLabel =>
+      deliverySteps[_deliveryStep.clamp(0, deliverySteps.length - 1)];
 
   List<OrderModel> get filteredOrders {
     if (_filter == 'All') return _orders;
-    return _orders.where((o) => o.status.toLowerCase() == _filter.toLowerCase()).toList();
+    return _orders
+        .where((o) => o.status.toLowerCase() == _filter.toLowerCase())
+        .toList();
   }
 
   Future<void> loadOrders() async {
@@ -45,12 +61,47 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadJobOffers() async {
+    _isLoadingOffers = true;
+    _offersError = null;
+    notifyListeners();
+
+    try {
+      final offers = await _orderService.getJobOffers();
+      _offers = offers;
+      _currentOffer = offers.isNotEmpty ? offers.first : null;
+      _newRequest = _currentOffer == null
+          ? null
+          : OrderModel(
+              id: _currentOffer!.id,
+              pickupAddress: _currentOffer!.pickupSubtitle,
+              dropoffAddress: _currentOffer!.dropoffSubtitle,
+              customerName: _currentOffer!.customerName,
+              vendorName: _currentOffer!.vendorName,
+              status: _currentOffer!.status,
+              price: _currentOffer!.driverEarnings,
+              distance: _currentOffer!.distanceKm,
+              createdAt: DateTime.now(),
+              paymentStatus: _currentOffer!.paymentMethod,
+            );
+    } on ApiException catch (e) {
+      _offersError = e.message;
+      _offers = const [];
+      _currentOffer = null;
+      _newRequest = null;
+    } catch (_) {
+      _offersError = 'Failed to load job offers';
+      _offers = const [];
+      _currentOffer = null;
+      _newRequest = null;
+    } finally {
+      _isLoadingOffers = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadNewRequest() async {
-    _isLoading = true;
-    notifyListeners();
-    _newRequest = await _orderService.getNewRequest();
-    _isLoading = false;
-    notifyListeners();
+    await loadJobOffers();
   }
 
   Future<void> loadOrderById(String id) async {
@@ -71,6 +122,7 @@ class OrderProvider extends ChangeNotifier {
 
   void rejectOrder() {
     _newRequest = null;
+    _currentOffer = null;
     notifyListeners();
   }
 
@@ -84,6 +136,7 @@ class OrderProvider extends ChangeNotifier {
   void resetDelivery() {
     _deliveryStep = 0;
     _currentOrder = null;
+    _currentOffer = null;
     _newRequest = null;
     notifyListeners();
   }

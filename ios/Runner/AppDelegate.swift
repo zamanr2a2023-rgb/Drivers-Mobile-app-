@@ -8,15 +8,23 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String,
-       !apiKey.isEmpty,
-       apiKey != "YOUR_IOS_RESTRICTED_KEY" {
-      GMSServices.provideAPIKey(apiKey)
-    }
+    // Must run before any GoogleMap view is created (e.g. dashboard after OTP login).
+    GMSServices.provideAPIKey(resolvedGoogleMapsApiKey())
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+
+  /// Reads `GMSApiKey` from Info.plist (`$(IOS_GOOGLE_MAPS_API_KEY)` via Secrets.xcconfig).
+  private func resolvedGoogleMapsApiKey() -> String {
+    let raw = (Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    // Unresolved build setting becomes empty or literal "$(...)".
+    if raw.isEmpty || raw.hasPrefix("$(") {
+      return "YOUR_IOS_RESTRICTED_KEY"
+    }
+    return raw
   }
 }

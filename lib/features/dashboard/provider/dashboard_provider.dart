@@ -16,12 +16,14 @@ class DashboardProvider extends ChangeNotifier {
 
   bool _isOnline = false;
   bool _isLoading = false;
+  bool _isUpdatingAutoAccept = false;
   String _currentLocation = 'Fetching location...';
   DriverHomeModel? _home;
   String? _error;
 
   bool get isOnline => _isOnline;
   bool get isLoading => _isLoading;
+  bool get isUpdatingAutoAccept => _isUpdatingAutoAccept;
   String get currentLocation => _currentLocation;
   DriverHomeModel? get home => _home;
   String? get error => _error;
@@ -94,13 +96,35 @@ class DashboardProvider extends ChangeNotifier {
       return;
     }
 
-    // Go-online API is not wired yet; keep local toggle for now.
+    await goOnline();
+  }
+
+  Future<bool> goOnline() async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
-    _isOnline = true;
-    _isLoading = false;
-    notifyListeners();
+
+    try {
+      final driver = await _dashboardService.updateDriverStatus('ONLINE');
+      final home = _home;
+      if (home != null) {
+        _home = home.copyWith(driver: driver);
+      }
+      _isOnline = driver.isOnlineStatus;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Failed to go online';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<bool> goOffline() async {
@@ -123,6 +147,38 @@ class DashboardProvider extends ChangeNotifier {
     } catch (_) {
       _error = 'Failed to go offline';
       _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> setAutoAcceptEnabled(bool enabled) async {
+    if (_isUpdatingAutoAccept) return false;
+
+    _isUpdatingAutoAccept = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final isEnabled =
+          await _dashboardService.setAutoAccept(enabled: enabled);
+      final home = _home;
+      if (home != null) {
+        _home = home.copyWith(
+          driver: home.driver.copyWith(isAutoAcceptEnabled: isEnabled),
+        );
+      }
+      _isUpdatingAutoAccept = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isUpdatingAutoAccept = false;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Failed to update auto-accept';
+      _isUpdatingAutoAccept = false;
       notifyListeners();
       return false;
     }

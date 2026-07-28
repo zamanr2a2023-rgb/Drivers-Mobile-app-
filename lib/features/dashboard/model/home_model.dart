@@ -42,6 +42,27 @@ class DriverHomeModel {
     );
   }
 
+  DriverHomeModel copyWith({
+    HomeDriverModel? driver,
+    HomeWalletModel? wallet,
+    HomeTodayModel? today,
+    int? scheduledOrdersCount,
+    int? unreadNotificationsCount,
+    dynamic activeDelivery,
+    bool? waitingForRequests,
+  }) {
+    return DriverHomeModel(
+      driver: driver ?? this.driver,
+      wallet: wallet ?? this.wallet,
+      today: today ?? this.today,
+      scheduledOrdersCount: scheduledOrdersCount ?? this.scheduledOrdersCount,
+      unreadNotificationsCount:
+          unreadNotificationsCount ?? this.unreadNotificationsCount,
+      activeDelivery: activeDelivery ?? this.activeDelivery,
+      waitingForRequests: waitingForRequests ?? this.waitingForRequests,
+    );
+  }
+
   static int _asInt(dynamic value) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? 0;
@@ -102,6 +123,24 @@ class HomeDriverModel {
       isAutoAcceptEnabled: json['isAutoAcceptEnabled'] == true,
       averageRating: _asDouble(json['averageRating']),
       rpiScore: _asDouble(json['rpiScore']),
+    );
+  }
+
+  HomeDriverModel copyWith({
+    String? status,
+    bool? isAutoAcceptEnabled,
+  }) {
+    return HomeDriverModel(
+      id: id,
+      champId: champId,
+      firstName: firstName,
+      lastName: lastName,
+      avatarUrl: avatarUrl,
+      status: status ?? this.status,
+      accountStatus: accountStatus,
+      isAutoAcceptEnabled: isAutoAcceptEnabled ?? this.isAutoAcceptEnabled,
+      averageRating: averageRating,
+      rpiScore: rpiScore,
     );
   }
 
