@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/deliver_to_customer_screen.dart';
 import 'package:yjeek_driver/features/orders/view/reject_scheduled_order_screen.dart';
 import 'package:yjeek_driver/features/orders/view/release_scheduled_order_screen.dart';
@@ -7,8 +10,8 @@ import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart'
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Orders screen — Instant + Scheduled tabs (UI-only, static data).
-/// Instant design preserved; Scheduled matches Figma DOR2.
+/// Orders screen — Instant + Scheduled tabs.
+/// Instant + Scheduled New load from `/drivers/jobs/board`.
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({
     super.key,
@@ -54,24 +57,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _showDeliverToCustomer = false;
   String _releaseOrderId = '#YJK-...52';
   String _rejectOrderId = '#YJK-...50';
+  String _rejectJobId = '';
 
-  late List<_NewScheduledOrder> _newOrdersList;
   late List<_ConfirmScheduledOrder> _confirmOrdersList;
-
-  static const _initialNewOrders = [
-    _NewScheduledOrder(
-      id: '#YJK-...50',
-      route: 'VEERA → Juffair',
-      window: 'Tomorrow · 1–3 PM',
-      respondIn: 'Respond within 47 min',
-    ),
-    _NewScheduledOrder(
-      id: '#YJK-...49',
-      route: 'Sharaf DG → Riffa',
-      window: 'Tomorrow · 4–6 PM',
-      respondIn: 'Respond within 1 hr 12 min',
-    ),
-  ];
 
   static const _initialConfirmOrders = [
     _ConfirmScheduledOrder(
@@ -172,19 +160,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     _segment = widget.initialSegment.clamp(0, 1);
-    _newOrdersList = List<_NewScheduledOrder>.from(_initialNewOrders);
     _confirmOrdersList =
         List<_ConfirmScheduledOrder>.from(_initialConfirmOrders);
     OrdersNavSignal.pendingSegment.addListener(_onNavSignal);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _consumeNavSignal());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumeNavSignal();
+      if (!mounted) return;
+      if (_segment == 0) {
+        context.read<OrderProvider>().loadInstantJobsBoard();
+      } else {
+        context.read<OrderProvider>().loadScheduledNewJobsBoard();
+      }
+    });
   }
-
-  List<String> get _filters => [
-        'New (${_newOrdersList.length})',
-        'Require confirmation (${_confirmOrdersList.length})',
-        'On track (2)',
-        'Completed (2)',
-      ];
 
   void _onDoubleConfirm() {
     setState(() {
@@ -194,8 +182,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void _acceptNewOrder(_NewScheduledOrder order) {
+    context.read<OrderProvider>().removeScheduledNewJob(
+          order.jobId.isNotEmpty ? order.jobId : order.id,
+        );
     setState(() {
-      _newOrdersList.removeWhere((o) => o.id == order.id);
       _confirmOrdersList.insert(
         0,
         _ConfirmScheduledOrder(
@@ -213,9 +203,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
-  void _openReject(String orderId) {
+  void _openReject(_NewScheduledOrder order) {
     setState(() {
-      _rejectOrderId = orderId;
+      _rejectOrderId = order.id;
+      _rejectJobId = order.jobId.isNotEmpty ? order.jobId : order.id;
       _showRejectScreen = true;
       _showReleaseScreen = false;
       _showDeliverToCustomer = false;
@@ -233,8 +224,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void _submitReject(String reason, String note) {
+    context.read<OrderProvider>().removeScheduledNewJob(_rejectJobId);
     setState(() {
-      _newOrdersList.removeWhere((order) => order.id == _rejectOrderId);
       _showRejectScreen = false;
       _scheduledFilter = 0; // Stay on New
       _segment = 1;
@@ -303,6 +294,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _showDeliverToCustomer = false;
     });
     OrdersNavSignal.clear();
+    if (_segment == 0) {
+      context.read<OrderProvider>().loadInstantJobsBoard();
+    } else if (_scheduledFilter == 0) {
+      context.read<OrderProvider>().loadScheduledNewJobsBoard();
+    }
   }
 
   void _openScheduledTrack(ScheduledDeliveryOrder order) {
@@ -322,11 +318,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void selectSegment(int index) {
-    setState(() => _segment = index.clamp(0, 1));
+    final next = index.clamp(0, 1);
+    setState(() => _segment = next);
+    if (next == 0) {
+      context.read<OrderProvider>().loadInstantJobsBoard();
+    } else if (_scheduledFilter == 0) {
+      context.read<OrderProvider>().loadScheduledNewJobsBoard();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final ordersProvider = context.watch<OrderProvider>();
+
     if (_showDeliverToCustomer) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -359,6 +363,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
       );
     }
+
+    final scheduledFilters = [
+      'New (${ordersProvider.scheduledNewCount})',
+      'Require confirmation (${_confirmOrdersList.length})',
+      'On track (2)',
+      'Completed (2)',
+    ];
 
     return Scaffold(
       backgroundColor: _screenBg,
@@ -395,11 +406,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       onContinue: _openDeliverToCustomer,
                     )
                   : _ScheduledOrdersBody(
-                      filters: _filters,
+                      filters: scheduledFilters,
                       selectedFilter: _scheduledFilter,
-                      onFilterChanged: (i) =>
-                          setState(() => _scheduledFilter = i),
-                      newOrders: _newOrdersList,
+                      onFilterChanged: (i) {
+                        setState(() => _scheduledFilter = i);
+                        if (i == 0) {
+                          context
+                              .read<OrderProvider>()
+                              .loadScheduledNewJobsBoard();
+                        }
+                      },
+                      newOrders: ordersProvider.scheduledNewJobs
+                          .map(_NewScheduledOrder.fromJob)
+                          .toList(growable: false),
+                      isLoadingNew: ordersProvider.isLoadingScheduledNewBoard,
+                      newError: ordersProvider.scheduledNewBoardError,
+                      onRefreshNew: () => context
+                          .read<OrderProvider>()
+                          .loadScheduledNewJobsBoard(),
                       confirmOrders: _confirmOrdersList,
                       onTrackOrders: _onTrackOrders,
                       onTrackOrderTap: _openScheduledTrack,
@@ -418,7 +442,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 }
 
-// ── Instant (unchanged design) ─────────────────────────────────────────────
+// ── Instant (API-backed, same design) ──────────────────────────────────────
 
 class _InstantOrdersBody extends StatelessWidget {
   const _InstantOrdersBody({required this.onContinue});
@@ -427,49 +451,117 @@ class _InstantOrdersBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      children: [
-        const Text(
-          'Active',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: _OrdersScreenState._textPrimary,
+    final provider = context.watch<OrderProvider>();
+    final isLoading = provider.isLoadingInstantBoard;
+    final error = provider.instantBoardError;
+    final activeJobs = provider.instantActiveJobs;
+    final completedJobs = provider.instantCompletedJobs;
+    final hasJobs = activeJobs.isNotEmpty || completedJobs.isNotEmpty;
+
+    if (isLoading && !hasJobs && error == null) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: _OrdersScreenState._green,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+
+    if (error != null && !hasJobs) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+        children: [
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _OrdersScreenState._textMuted,
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        _ActiveOrderCard(onContinue: onContinue),
-        const SizedBox(height: 22),
-        const Text(
-          'Completed',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: _OrdersScreenState._textPrimary,
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  context.read<OrderProvider>().loadInstantJobsBoard(),
+              child: const Text('Retry'),
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        const _CompletedOrderCard(
-          isDelivered: true,
-          route: 'Lulu Express → Seef, Bldg 428, Road 2825, Flat 14',
-          amount: 'BHD 2.3',
-          meta: '13:48 · BHD 2.300',
-        ),
-        const SizedBox(height: 10),
-        const _CompletedOrderCard(
-          isDelivered: true,
-          route: 'VEERA → Adliya, Bldg 23, Flat 82',
-          amount: 'BHD 1.9',
-          meta: '12:30 · BHD 1.900',
-        ),
-        const SizedBox(height: 10),
-        const _CompletedOrderCard(
-          isDelivered: false,
-          route: 'Marine & Co. → Juffair, Bldg 120, Road 4012, Flat 5',
-          meta: '11:10 · customer cancelled',
-        ),
-      ],
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      color: _OrdersScreenState._green,
+      onRefresh: () => context.read<OrderProvider>().loadInstantJobsBoard(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        children: [
+          const Text(
+            'Active',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: _OrdersScreenState._textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (activeJobs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text(
+                'No active orders',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: _OrdersScreenState._textMuted,
+                ),
+              ),
+            )
+          else
+            ...activeJobs.map(
+              (job) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _ActiveOrderCard(
+                  job: job,
+                  onContinue: onContinue,
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Completed',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: _OrdersScreenState._textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (completedJobs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text(
+                'No completed orders',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: _OrdersScreenState._textMuted,
+                ),
+              ),
+            )
+          else
+            ...completedJobs.map(
+              (job) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _CompletedOrderCard(job: job),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -482,9 +574,21 @@ class _NewScheduledOrder {
     required this.route,
     required this.window,
     required this.respondIn,
+    this.jobId = '',
   });
 
+  factory _NewScheduledOrder.fromJob(JobsBoardJob job) {
+    return _NewScheduledOrder(
+      id: job.displayOrderId,
+      jobId: job.id,
+      route: job.displayRoute,
+      window: job.scheduledWindowLabel,
+      respondIn: job.respondWithinLabel,
+    );
+  }
+
   final String id;
+  final String jobId;
   final String route;
   final String window;
   final String respondIn;
@@ -510,6 +614,9 @@ class _ScheduledOrdersBody extends StatelessWidget {
     required this.selectedFilter,
     required this.onFilterChanged,
     required this.newOrders,
+    required this.isLoadingNew,
+    required this.newError,
+    required this.onRefreshNew,
     required this.confirmOrders,
     required this.onTrackOrders,
     required this.onTrackOrderTap,
@@ -525,6 +632,9 @@ class _ScheduledOrdersBody extends StatelessWidget {
   final int selectedFilter;
   final ValueChanged<int> onFilterChanged;
   final List<_NewScheduledOrder> newOrders;
+  final bool isLoadingNew;
+  final String? newError;
+  final Future<void> Function() onRefreshNew;
   final List<_ConfirmScheduledOrder> confirmOrders;
   final List<ScheduledDeliveryOrder> onTrackOrders;
   final ValueChanged<ScheduledDeliveryOrder> onTrackOrderTap;
@@ -533,7 +643,7 @@ class _ScheduledOrdersBody extends StatelessWidget {
   final VoidCallback onDoubleConfirm;
   final ValueChanged<String> onRelease;
   final ValueChanged<_NewScheduledOrder> onAcceptNew;
-  final ValueChanged<String> onRejectNew;
+  final ValueChanged<_NewScheduledOrder> onRejectNew;
 
   @override
   Widget build(BuildContext context) {
@@ -630,25 +740,74 @@ class _ScheduledOrdersBody extends StatelessWidget {
         );
       case 0:
       default:
-        if (newOrders.isEmpty) {
+        if (isLoadingNew && newOrders.isEmpty && newError == null) {
           return const Center(
-            child: Text(
-              'No new scheduled orders',
-              style: TextStyle(
-                fontSize: 14,
-                color: _OrdersScreenState._textMuted,
-              ),
+            child: CircularProgressIndicator(
+              color: _OrdersScreenState._green,
+              strokeWidth: 2.5,
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: newOrders.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) => _NewScheduledCard(
-            data: newOrders[index],
-            onAccept: () => onAcceptNew(newOrders[index]),
-            onReject: () => onRejectNew(newOrders[index].id),
+
+        if (newError != null && newOrders.isEmpty) {
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+            children: [
+              Text(
+                newError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: _OrdersScreenState._textMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: onRefreshNew,
+                  child: const Text('Retry'),
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (newOrders.isEmpty) {
+          return RefreshIndicator(
+            color: _OrdersScreenState._green,
+            onRefresh: onRefreshNew,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+              children: const [
+                Text(
+                  'No new scheduled orders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _OrdersScreenState._textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: _OrdersScreenState._green,
+          onRefresh: onRefreshNew,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: newOrders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _NewScheduledCard(
+              data: newOrders[index],
+              onAccept: () => onAcceptNew(newOrders[index]),
+              onReject: () => onRejectNew(newOrders[index]),
+            ),
           ),
         );
     }
@@ -1260,12 +1419,18 @@ class _SegmentTab extends StatelessWidget {
 }
 
 class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard({required this.onContinue});
+  const _ActiveOrderCard({
+    required this.job,
+    required this.onContinue,
+  });
 
+  final JobsBoardJob job;
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
+    final eta = job.etaLabel;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1277,48 +1442,51 @@ class _ActiveOrderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               _StatusPill(
-                label: 'ON THE WAY',
+                label: job.displayStatusLabel,
                 background: _OrdersScreenState._greenPillBg,
                 foreground: _OrdersScreenState._greenDark,
               ),
-              Spacer(),
-              Text(
-                '12 min',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _OrdersScreenState._green,
+              const Spacer(),
+              if (eta.isNotEmpty)
+                Text(
+                  eta,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _OrdersScreenState._green,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            'The Green Kitchen → Adliya',
-            style: TextStyle(
+          Text(
+            job.displayRoute,
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: _OrdersScreenState._textPrimary,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            '#YJK-...43 · cash BHD 8.500',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: _OrdersScreenState._textSecondary,
+          if (job.activeSubtitle.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              job.activeSubtitle,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: _OrdersScreenState._textSecondary,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: const LinearProgressIndicator(
-              value: 0.58,
+            child: LinearProgressIndicator(
+              value: job.progressValue,
               minHeight: 6,
               backgroundColor: _OrdersScreenState._progressTrack,
               color: _OrdersScreenState._green,
@@ -1327,10 +1495,10 @@ class _ActiveOrderCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Arriving in 12 min',
-                  style: TextStyle(
+                  job.arrivingLabel,
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _OrdersScreenState._textPrimary,
@@ -1370,20 +1538,16 @@ class _ActiveOrderCard extends StatelessWidget {
 }
 
 class _CompletedOrderCard extends StatelessWidget {
-  const _CompletedOrderCard({
-    required this.isDelivered,
-    required this.route,
-    required this.meta,
-    this.amount,
-  });
+  const _CompletedOrderCard({required this.job});
 
-  final bool isDelivered;
-  final String route;
-  final String meta;
-  final String? amount;
+  final JobsBoardJob job;
 
   @override
   Widget build(BuildContext context) {
+    final isDelivered = !job.isCancelled;
+    final amount = isDelivered ? job.earningsLabel : null;
+    final meta = job.completedMeta;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1410,7 +1574,7 @@ class _CompletedOrderCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  route,
+                  job.completedRoute,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1422,7 +1586,7 @@ class _CompletedOrderCard extends StatelessWidget {
               if (amount != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  amount!,
+                  amount,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1432,15 +1596,17 @@ class _CompletedOrderCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            meta,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
-              color: _OrdersScreenState._textSecondary,
+          if (meta.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              meta,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                color: _OrdersScreenState._textSecondary,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

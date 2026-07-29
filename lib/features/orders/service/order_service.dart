@@ -1,4 +1,5 @@
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
+import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/services/api_service.dart';
@@ -26,6 +27,91 @@ class OrderService {
     } on FormatException {
       throw ApiException('Invalid response from server');
     }
+  }
+
+  Future<JobsBoardData> getJobsBoard({
+    required String type,
+    required String section,
+    int limit = 20,
+  }) async {
+    final response = await _api.get(
+      ApiEndpoints.jobsBoard(type: type, section: section, limit: limit),
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to load orders board'),
+      );
+    }
+
+    try {
+      return JobsBoardData.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  Future<JobsHistoryData> getJobsHistory({
+    String type = 'all',
+    bool includeCancelled = true,
+    int limit = 20,
+  }) async {
+    final response = await _api.get(
+      ApiEndpoints.jobsHistory(
+        type: type,
+        includeCancelled: includeCancelled,
+        limit: limit,
+      ),
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to load jobs history'),
+      );
+    }
+
+    try {
+      return JobsHistoryData.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Current active job for the driver, or `null` when none.
+  Future<JobsBoardJob?> getActiveJob() async {
+    final response = await _api.get(ApiEndpoints.jobActive);
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to load active job'),
+      );
+    }
+
+    final data = response['data'];
+    if (data == null) return null;
+
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobsBoardJob.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  String _failureMessage(Map<String, dynamic> response, String fallback) {
+    final message = response['message']?.toString();
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+
+    final error = response['error'];
+    if (error is Map) {
+      final nested = error['message']?.toString();
+      if (nested != null && nested.trim().isNotEmpty) return nested.trim();
+    }
+
+    return fallback;
   }
 
   Future<List<OrderModel>> getOrders() async {

@@ -204,43 +204,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: _onlineBg,
         body: SafeArea(
           bottom: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const headerBlock = 68.0;
-              const autoAcceptBlock = 66.0;
-              const scheduledBlock = 48.0;
-              const summaryBlock = 200.0;
-              final mapHeight = (constraints.maxHeight -
-                      headerBlock -
-                      autoAcceptBlock -
-                      scheduledBlock -
-                      summaryBlock)
-                  .clamp(300.0, 410.0);
-
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildOnlineHeader(context, dashboard),
-                      const SizedBox(height: 18),
-                      _buildOnlineAutoAcceptCard(context, dashboard),
-                      const SizedBox(height: 10),
-                      _buildOnlineScheduledCard(context, dashboard),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        width: double.infinity,
-                        height: mapHeight,
-                        child: const AppGoogleMap(),
-                      ),
-                      _buildOnlineSummary(context, dashboard),
-                    ],
-                  ),
-                ),
-              );
-            },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildOnlineHeader(context, dashboard),
+              const SizedBox(height: 18),
+              _buildOnlineAutoAcceptCard(context, dashboard),
+              const SizedBox(height: 10),
+              _buildOnlineScheduledCard(context, dashboard),
+              const SizedBox(height: 4),
+              // Keep GoogleMap outside scrollables — iOS Platform Views often
+              // show only the Google logo (blank tiles) inside SingleChildScrollView.
+              const Expanded(child: AppGoogleMap()),
+              _buildOnlineSummary(context, dashboard),
+            ],
           ),
         ),
       ),

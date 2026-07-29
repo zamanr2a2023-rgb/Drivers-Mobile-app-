@@ -17,14 +17,13 @@ import GoogleMaps
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 
-  /// Reads `GMSApiKey` from Info.plist (`$(IOS_GOOGLE_MAPS_API_KEY)` via Secrets.xcconfig).
+  /// Reads `GMSApiKey` from Info.plist / Secrets.xcconfig.
   private func resolvedGoogleMapsApiKey() -> String {
     let raw = (Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String ?? "")
       .trimmingCharacters(in: .whitespacesAndNewlines)
-    // Unresolved build setting becomes empty or literal "$(...)".
-    if raw.isEmpty || raw.hasPrefix("$(") {
-      return "YOUR_IOS_RESTRICTED_KEY"
+    if !raw.isEmpty && !raw.hasPrefix("$(") && raw != "YOUR_IOS_RESTRICTED_KEY" {
+      return raw
     }
-    return raw
+    return "AIzaSyC7BXis0DYkbNBdzeXQV6VWPPcSj6aL-PM"
   }
 }

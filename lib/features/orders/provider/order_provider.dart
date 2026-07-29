@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/features/orders/service/order_service.dart';
@@ -12,12 +13,21 @@ class OrderProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isLoadingOffers = false;
+  bool _isLoadingInstantBoard = false;
+  bool _isLoadingScheduledNewBoard = false;
   List<OrderModel> _orders = [];
   List<JobOfferModel> _offers = const [];
+  List<JobsBoardJob> _instantActiveJobs = const [];
+  List<JobsBoardJob> _instantCompletedJobs = const [];
+  List<JobsBoardJob> _scheduledNewJobs = const [];
+  JobsBoardCounts _instantCounts = const JobsBoardCounts();
+  JobsBoardCounts _scheduledCounts = const JobsBoardCounts();
   OrderModel? _currentOrder;
   OrderModel? _newRequest;
   JobOfferModel? _currentOffer;
   String? _offersError;
+  String? _instantBoardError;
+  String? _scheduledNewBoardError;
   String _filter = 'Active';
   int _deliveryStep = 0;
 
@@ -30,12 +40,22 @@ class OrderProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingOffers => _isLoadingOffers;
+  bool get isLoadingInstantBoard => _isLoadingInstantBoard;
+  bool get isLoadingScheduledNewBoard => _isLoadingScheduledNewBoard;
   List<OrderModel> get orders => _orders;
   List<JobOfferModel> get offers => _offers;
+  List<JobsBoardJob> get instantActiveJobs => _instantActiveJobs;
+  List<JobsBoardJob> get instantCompletedJobs => _instantCompletedJobs;
+  List<JobsBoardJob> get scheduledNewJobs => _scheduledNewJobs;
+  JobsBoardCounts get instantCounts => _instantCounts;
+  JobsBoardCounts get scheduledCounts => _scheduledCounts;
+  int get scheduledNewCount => _scheduledNewJobs.length;
   OrderModel? get currentOrder => _currentOrder;
   OrderModel? get newRequest => _newRequest;
   JobOfferModel? get currentOffer => _currentOffer;
   String? get offersError => _offersError;
+  String? get instantBoardError => _instantBoardError;
+  String? get scheduledNewBoardError => _scheduledNewBoardError;
   String get filter => _filter;
   int get deliveryStep => _deliveryStep;
   String get currentStepLabel =>
@@ -98,6 +118,81 @@ class OrderProvider extends ChangeNotifier {
       _isLoadingOffers = false;
       notifyListeners();
     }
+  }
+
+  Future<void> loadInstantJobsBoard() async {
+    _isLoadingInstantBoard = true;
+    _instantBoardError = null;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _orderService.getActiveJob(),
+        _orderService.getJobsHistory(
+          type: 'all',
+          includeCancelled: true,
+        ),
+      ]);
+
+      final activeJob = results[0] as JobsBoardJob?;
+      final history = results[1] as JobsHistoryData;
+
+      _instantActiveJobs =
+          activeJob == null ? const [] : <JobsBoardJob>[activeJob];
+      _instantCompletedJobs = history.jobs;
+      _instantCounts = JobsBoardCounts(
+        active: activeJob == null ? 0 : 1,
+        completed: history.count,
+      );
+    } on ApiException catch (e) {
+      _instantBoardError = e.message;
+      _instantActiveJobs = const [];
+      _instantCompletedJobs = const [];
+      _instantCounts = const JobsBoardCounts();
+    } catch (_) {
+      _instantBoardError = 'Failed to load orders';
+      _instantActiveJobs = const [];
+      _instantCompletedJobs = const [];
+      _instantCounts = const JobsBoardCounts();
+    } finally {
+      _isLoadingInstantBoard = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadScheduledNewJobsBoard() async {
+    _isLoadingScheduledNewBoard = true;
+    _scheduledNewBoardError = null;
+    notifyListeners();
+
+    try {
+      final data = await _orderService.getJobsBoard(
+        type: 'scheduled',
+        section: 'new',
+      );
+      _scheduledNewJobs = data.jobs;
+      _scheduledCounts = data.counts;
+    } on ApiException catch (e) {
+      _scheduledNewBoardError = e.message;
+      _scheduledNewJobs = const [];
+      _scheduledCounts = const JobsBoardCounts();
+    } catch (_) {
+      _scheduledNewBoardError = 'Failed to load scheduled orders';
+      _scheduledNewJobs = const [];
+      _scheduledCounts = const JobsBoardCounts();
+    } finally {
+      _isLoadingScheduledNewBoard = false;
+      notifyListeners();
+    }
+  }
+
+  void removeScheduledNewJob(String jobId) {
+    final id = jobId.trim();
+    if (id.isEmpty) return;
+    _scheduledNewJobs = _scheduledNewJobs
+        .where((job) => job.id != id && job.displayOrderId != id)
+        .toList(growable: false);
+    notifyListeners();
   }
 
   Future<void> loadNewRequest() async {

@@ -16,6 +16,23 @@ class DashboardService {
     );
   }
 
+  Future<DriverHomeModel> goOnline({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _api.post(
+      ApiEndpoints.goOnline,
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+    return _parseHomeResponse(
+      response,
+      failureMessage: 'Failed to go online',
+    );
+  }
+
   Future<DriverHomeModel> goOffline() async {
     final response = await _api.post(ApiEndpoints.goOffline);
     return _parseHomeResponse(

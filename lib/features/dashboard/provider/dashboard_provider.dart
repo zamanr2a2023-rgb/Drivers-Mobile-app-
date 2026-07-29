@@ -105,12 +105,21 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final driver = await _dashboardService.updateDriverStatus('ONLINE');
-      final home = _home;
-      if (home != null) {
-        _home = home.copyWith(driver: driver);
+      var location = await _locationService.getCurrentMapLocation();
+      if (location == null) {
+        await _locationService.requestLocationPermission();
+        location = await _locationService.getCurrentMapLocation();
       }
-      _isOnline = driver.isOnlineStatus;
+      if (location == null) {
+        throw ApiException('Location is required to go online');
+      }
+
+      final home = await _dashboardService.goOnline(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      _home = home;
+      _isOnline = home.driver.isOnlineStatus;
       _isLoading = false;
       notifyListeners();
       return true;

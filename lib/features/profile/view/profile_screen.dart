@@ -1,7 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/app_assets.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -14,7 +21,157 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final ProfileService _profileService = ProfileService();
+
   bool _autoAccept = false;
+
+  bool _isLoadingAccount = false;
+
+  String _firstName = 'Ahmed';
+  String _lastName = 'Khalid';
+  double _averageRating = 4.9;
+  int _totalOrders = 240;
+  int _rpiScore = 88;
+  String _accountStatus = 'ACTIVE';
+
+  String _displayCode = 'YJK-DRV-0142';
+  String _countryCode = '+973';
+  String _phone = '3300 0000';
+  String? _avatarUrl;
+  Uint8List? _avatarBytes;
+  String? _avatarBytesUrl;
+
+  String _language = 'en';
+  bool _documentsVerifiedBadge = true;
+
+  String get _initials {
+    final a = _firstName.trim();
+    final b = _lastName.trim();
+    final first = a.isNotEmpty ? a[0].toUpperCase() : '';
+    final second = b.isNotEmpty ? b[0].toUpperCase() : '';
+    return (first + second).isNotEmpty ? (first + second) : 'MA';
+  }
+
+  String get _accountStatusLabel {
+    final s = _accountStatus.trim();
+    if (s.isEmpty) return 'Active';
+    final lower = s.toLowerCase();
+    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAccount();
+    });
+  }
+
+  Future<void> _loadAccount() async {
+    if (_isLoadingAccount) return;
+    setState(() => _isLoadingAccount = true);
+
+    try {
+      final profile = await _profileService.getDriverProfile();
+      if (!mounted) return;
+
+        final nextAvatarUrl = profile.avatarUrl?.trim();
+        final avatarChanged = nextAvatarUrl != _avatarUrl;
+        setState(() {
+          _firstName = profile.firstName.isNotEmpty
+              ? profile.firstName
+              : _firstName;
+          _lastName =
+              profile.lastName.isNotEmpty ? profile.lastName : _lastName;
+          _averageRating = profile.averageRating;
+          _totalOrders = profile.lifetimeDeliveries;
+          _rpiScore = profile.rpiScore.round();
+          _accountStatus = profile.accountStatus.isNotEmpty
+              ? profile.accountStatus
+              : _accountStatus;
+
+          _displayCode = profile.displayCode.isNotEmpty
+              ? profile.displayCode
+              : _displayCode;
+          _countryCode = profile.countryCode;
+          final phone = profile.phone?.trim();
+          if (phone != null && phone.isNotEmpty) {
+            _phone = phone;
+          }
+          _avatarUrl = (nextAvatarUrl != null && nextAvatarUrl.isNotEmpty)
+              ? nextAvatarUrl
+              : null;
+          if (avatarChanged) {
+            _avatarBytes = null;
+            _avatarBytesUrl = null;
+          }
+
+          _autoAccept = profile.isAutoAcceptEnabled;
+          _language =
+              profile.language.isNotEmpty ? profile.language : _language;
+          _documentsVerifiedBadge = profile.isIdVerified;
+        });
+
+        await _loadAvatarBytes(_avatarUrl);
+    } on ApiException {
+      // Keep fallbacks on failure.
+    } catch (_) {
+      // Keep fallbacks on failure.
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoadingAccount = false);
+    }
+  }
+
+  Future<void> _loadAvatarBytes(String? url) async {
+    final trimmed = url?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _avatarBytes = null;
+        _avatarBytesUrl = null;
+      });
+      return;
+    }
+
+    if (trimmed == _avatarBytesUrl && _avatarBytes != null) return;
+
+    try {
+      final uri = Uri.parse(trimmed);
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(uri).timeout(
+          const Duration(seconds: 20),
+        );
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw HttpException('Avatar download failed');
+        }
+        final bytes = await consolidateHttpClientResponseBytes(response);
+        if (!mounted) return;
+        setState(() {
+          _avatarBytes = bytes;
+          _avatarBytesUrl = trimmed;
+        });
+      } finally {
+        client.close(force: true);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _avatarBytes = null;
+        _avatarBytesUrl = null;
+      });
+    }
+  }
+
+  Future<void> _openAndRefresh(String routeName) async {
+    await Navigator.pushNamed(context, routeName);
+    if (!mounted) return;
+    await _loadAccount();
+  }
 
   void _logout() {
     context.read<AuthProvider>().logout();
@@ -68,6 +225,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildAvatarFallback() {
+    return Text(
+      _initials,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: DocColors.greenDark,
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    final bytes = _avatarBytes;
+    final url = _avatarUrl?.trim();
+    final hasBytes = bytes != null && bytes.isNotEmpty;
+    final hasUrl = url != null && url.isNotEmpty;
+
+    return ClipOval(
+      child: Container(
+        width: 56,
+        height: 56,
+        color: DocColors.doneBg,
+        alignment: Alignment.center,
+        child: hasBytes
+            ? Image.memory(
+                bytes,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => _buildAvatarFallback(),
+              )
+            : hasUrl
+                ? Image.network(
+                    url,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    cacheWidth: 112,
+                    cacheHeight: 112,
+                    errorBuilder: (_, __, ___) => _buildAvatarFallback(),
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return _buildAvatarFallback();
+                    },
+                  )
+                : _buildAvatarFallback(),
+      ),
+    );
+  }
+
   Widget _buildProfileCard() {
     return Container(
       width: double.infinity,
@@ -79,30 +287,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: DocColors.doneBg,
-              shape: BoxShape.circle,
-            ),
-            child: const Text(
-              'MA',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: DocColors.greenDark,
-              ),
-            ),
-          ),
+          _buildAvatar(),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Ahmed Khalid',
+                Text(
+                  '$_firstName $_lastName'.trim(),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -111,11 +303,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.star_rounded, size: 15, color: DocColors.gold),
                     SizedBox(width: 2),
                     Text(
-                      '4.9',
+                      _averageRating.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -124,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     SizedBox(width: 10),
                     Text(
-                      '240 Orders',
+                      '$_totalOrders Orders',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -141,8 +333,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: DocColors.doneBg,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'RPI 88 · Active',
+                  child: Text(
+                    'RPI $_rpiScore · $_accountStatusLabel',
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
@@ -173,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(vertical: 13),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 Text(
                   'Champ ID',
                   style: TextStyle(
@@ -183,7 +375,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 Text(
-                  'YJK-DRV-0142',
+                  _displayCode,
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -207,8 +399,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const Spacer(),
-                const Text(
-                  '+973 3300 0000',
+                Text(
+                  '$_countryCode $_phone',
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -221,8 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    onTap: () =>
-                        Navigator.pushNamed(context, RouteNames.changeNumber),
+                    onTap: () => _openAndRefresh(RouteNames.changeNumber),
                     child: const Padding(
                       padding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -306,8 +497,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _SettingsRow(
             iconAsset: AppAssets.accountDocuments,
             label: 'Documents',
-            badge: 'Verified',
-            onTap: () => Navigator.pushNamed(context, RouteNames.documents),
+            badge: _documentsVerifiedBadge ? 'Verified' : 'Verify',
+            onTap: () => _openAndRefresh(RouteNames.documents),
           ),
           const Divider(
             height: 1,
@@ -319,8 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _SettingsRow(
             icon: Icons.notifications_none_rounded,
             label: 'Notifications',
-            onTap: () =>
-                Navigator.pushNamed(context, RouteNames.notifications),
+            onTap: () => _openAndRefresh(RouteNames.notifications),
           ),
           const Divider(
             height: 1,
@@ -332,8 +522,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _SettingsRow(
             icon: Icons.language_rounded,
             label: 'Language',
-            badge: 'EN',
-            onTap: () => Navigator.pushNamed(context, RouteNames.language),
+            badge: _language.toUpperCase(),
+            onTap: () => _openAndRefresh(RouteNames.language),
           ),
         ],
       ),
@@ -408,6 +598,8 @@ class _SettingsRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,

@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// DU5 · Upload — Profile photo
 class UploadProfilePhotoScreen extends StatefulWidget {
@@ -13,11 +15,100 @@ class UploadProfilePhotoScreen extends StatefulWidget {
 }
 
 class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
+  final ProfileService _profileService = ProfileService();
+
   Uint8List? _photoBytes;
+  String? _avatarUrl;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentAvatar();
+    });
+  }
+
+  Future<void> _loadCurrentAvatar() async {
+    try {
+      final personal = await _profileService.getPersonalAccount();
+      if (!mounted) return;
+      final url = personal.avatarUrl?.trim();
+      if (url != null && url.isNotEmpty && _photoBytes == null) {
+        setState(() => _avatarUrl = url);
+      }
+    } catch (_) {
+      // Keep placeholder if load fails.
+    }
+  }
 
   Future<void> _pick() async {
     final bytes = await pickDocPhoto(context);
-    if (bytes != null) setState(() => _photoBytes = bytes);
+    if (bytes != null) {
+      setState(() {
+        _photoBytes = bytes;
+        _avatarUrl = null;
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    final bytes = _photoBytes;
+    if (bytes == null) {
+      showDocSnack(context, 'Please select a profile photo');
+      return;
+    }
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final avatarUrl = await _profileService.updateAvatar(bytes: bytes);
+      if (!mounted) return;
+
+      setState(() => _avatarUrl = avatarUrl);
+      showDocSnack(context, 'Profile photo saved');
+      Navigator.maybePop(context);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(context, 'Failed to update avatar');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Widget _buildAvatarPreview() {
+    if (_photoBytes != null) {
+      return Image.memory(
+        _photoBytes!,
+        width: 150,
+        height: 150,
+        fit: BoxFit.cover,
+      );
+    }
+
+    final url = _avatarUrl?.trim();
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        width: 150,
+        height: 150,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Text(
+          '🙂',
+          style: TextStyle(fontSize: 40),
+        ),
+      );
+    }
+
+    return const Text(
+      '🙂',
+      style: TextStyle(fontSize: 40),
+    );
   }
 
   @override
@@ -46,7 +137,7 @@ class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
                     const SizedBox(height: 22),
                     Center(
                       child: GestureDetector(
-                        onTap: _pick,
+                        onTap: _isSaving ? null : _pick,
                         child: Column(
                           children: [
                             Container(
@@ -58,17 +149,7 @@ class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
                                 color: DocColors.doneBg,
                                 shape: BoxShape.circle,
                               ),
-                              child: _photoBytes != null
-                                  ? Image.memory(
-                                      _photoBytes!,
-                                      width: 150,
-                                      height: 150,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : const Text(
-                                      '🙂',
-                                      style: TextStyle(fontSize: 40),
-                                    ),
+                              child: _buildAvatarPreview(),
                             ),
                             const SizedBox(height: 8),
                             const Text(
@@ -84,13 +165,20 @@ class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
                       ),
                     ),
                     const SizedBox(height: 26),
-                    DocPrimaryButton(
-                      label: 'Save',
-                      onPressed: () {
-                        showDocSnack(context, 'Profile photo saved');
-                        Navigator.maybePop(context);
-                      },
-                    ),
+                    if (_isSaving)
+                      const SizedBox(
+                        height: 50,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: DocColors.green,
+                          ),
+                        ),
+                      )
+                    else
+                      DocPrimaryButton(
+                        label: 'Save',
+                        onPressed: _save,
+                      ),
                   ],
                 ),
               ),
