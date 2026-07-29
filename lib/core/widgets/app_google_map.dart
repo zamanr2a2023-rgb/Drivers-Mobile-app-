@@ -41,7 +41,7 @@ class AppGoogleMap extends StatefulWidget {
   State<AppGoogleMap> createState() => _AppGoogleMapState();
 }
 
-class _AppGoogleMapState extends State<AppGoogleMap> {
+class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver {
   final LocationService _locationService = LocationService();
 
   GoogleMapController? _controller;
@@ -51,6 +51,7 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
   bool _didInitialCameraMove = false;
   String? _message;
   StreamSubscription<Position>? _positionSub;
+  bool _bootstrapping = false;
 
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
@@ -58,7 +59,18 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _bootstrap();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _bootstrapping) return;
+    if (_state == DriverMapState.permissionDenied ||
+        _state == DriverMapState.permissionRequired ||
+        _state == DriverMapState.locationDisabled) {
+      _bootstrap();
+    }
   }
 
   @override
@@ -76,8 +88,9 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
-    _controller?.dispose();
+    // Do not dispose GoogleMapController — the GoogleMap widget owns it.
     _controller = null;
     super.dispose();
   }
@@ -92,60 +105,66 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
   }
 
   Future<void> _bootstrap() async {
+    if (_bootstrapping) return;
+    _bootstrapping = true;
     _setState(DriverMapState.loading);
     _rebuildOverlays();
 
-    final serviceEnabled = await _locationService.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      _setState(
-        DriverMapState.locationDisabled,
-        message: 'Location services are turned off',
-      );
-      return;
-    }
+    try {
+      final serviceEnabled = await _locationService.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _myLocationEnabled = false;
+        _rebuildOverlays();
+        _setState(
+          DriverMapState.locationDisabled,
+          message: 'Location services are turned off',
+        );
+        await _fitCamera(force: true);
+        return;
+      }
 
-    final status = await _locationService.requestLocationPermission();
-    if (status.isPermanentlyDenied || status.isDenied) {
-      _setState(
-        status.isPermanentlyDenied
-            ? DriverMapState.permissionDenied
-            : DriverMapState.permissionRequired,
-        message: status.isPermanentlyDenied
-            ? 'Location permission permanently denied. Enable it in Settings.'
-            : 'Location permission is required to show your position',
-      );
-      return;
-    }
+      final status = await _locationService.requestLocationPermission();
+      if (!status.isGranted) {
+        // Still show the base map (fallback camera). Never open Settings here —
+        // that backgrounds the app mid-create and leaves a blank Google Map.
+        _myLocationEnabled = false;
+        _rebuildOverlays();
+        _setState(
+          status.isPermanentlyDenied
+              ? DriverMapState.permissionDenied
+              : DriverMapState.permissionRequired,
+          message: status.isPermanentlyDenied
+              ? 'Location permission permanently denied. Enable it in Settings.'
+              : 'Location permission is required to show your position',
+        );
+        await _fitCamera(force: true);
+        return;
+      }
 
-    if (!status.isGranted) {
-      _setState(
-        DriverMapState.permissionRequired,
-        message: 'Location permission is required',
-      );
-      return;
-    }
+      _myLocationEnabled = true;
+      final current = await _locationService.getCurrentMapLocation();
+      if (!mounted) return;
 
-    _myLocationEnabled = true;
-    final current = await _locationService.getCurrentMapLocation();
-    if (!mounted) return;
+      if (current != null) {
+        _driverLocation = current;
+        _setState(DriverMapState.locationReady);
+      } else {
+        _setState(
+          DriverMapState.mapReady,
+          message: 'Waiting for GPS…',
+        );
+      }
 
-    if (current != null) {
-      _driverLocation = current;
-      _setState(DriverMapState.locationReady);
-    } else {
-      _setState(
-        DriverMapState.mapReady,
-        message: 'Waiting for GPS…',
-      );
-    }
+      _rebuildOverlays();
+      await _fitCamera(force: true);
 
-    _rebuildOverlays();
-    await _fitCamera(force: true);
-
-    if (widget.trackDriver) {
-      await _startTracking();
-    } else {
-      _setState(DriverMapState.mapReady);
+      if (widget.trackDriver) {
+        await _startTracking();
+      } else {
+        _setState(DriverMapState.mapReady);
+      }
+    } finally {
+      _bootstrapping = false;
     }
   }
 
@@ -285,11 +304,19 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
     }
   }
 
+  Future<void> _onPermissionRetry() async {
+    if (_state == DriverMapState.permissionDenied) {
+      await _locationService.openAppSettings();
+      return;
+    }
+    await _bootstrap();
+  }
+
   Future<void> _onRecenter() async {
     if (_state == DriverMapState.permissionDenied ||
         _state == DriverMapState.permissionRequired ||
         _state == DriverMapState.locationDisabled) {
-      await _bootstrap();
+      await _onPermissionRetry();
       return;
     }
 
@@ -390,7 +417,7 @@ class _AppGoogleMapState extends State<AppGoogleMap> {
                         _state == DriverMapState.permissionRequired ||
                         _state == DriverMapState.locationDisabled)
                       TextButton(
-                        onPressed: _bootstrap,
+                        onPressed: _onPermissionRetry,
                         child: const Text('Retry'),
                       ),
                   ],

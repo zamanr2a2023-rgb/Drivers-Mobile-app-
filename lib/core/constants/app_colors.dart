@@ -15,3 +15,4 @@ class AppColors {
   static const Color cardBorder = Color(0xFFE5E7EB);
   static const Color success = Color(0xFF12B76A);
 }
+//new update in flutter new version 3.21.0

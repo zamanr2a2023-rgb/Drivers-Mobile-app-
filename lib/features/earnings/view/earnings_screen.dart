@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE1 · Earnings
 class EarningsScreen extends StatefulWidget {
@@ -10,9 +11,214 @@ class EarningsScreen extends StatefulWidget {
 }
 
 class _EarningsScreenState extends State<EarningsScreen> {
-  int _selectedPeriod = 1; // 0 Today, 1 This week, 2 This month
+  int _selectedPeriod = 0; // 0 Today, 1 This week, 2 This month
+
+  bool _isLoadingToday = false;
+  bool _hasTodayData = false;
+  bool _isLoadingWeekly = false;
+  bool _hasWeeklyData = false;
+  bool _isLoadingMonthly = false;
+  bool _hasMonthlyData = false;
+
+  // Today (daily) API fields.
+  double _todayTotalEarnings = 0;
+  int _todayTrips = 0;
+  String _todayOnlineDurationLabel = '0m';
+  double _todayTripFares = 0;
+  double _todayTips = 0;
+  double _todayIncentivesAndBonuses = 0;
+  double _todayBreakdownTotal = 0;
+  double _todayCodToSettle = 0;
+
+  // Weekly (weekly) API fields.
+  double _weeklyTotalEarnings = 0;
+  int _weeklyTrips = 0;
+  String _weeklyOnlineDurationLabel = '0m';
+  double _weeklyTripFares = 0;
+  double _weeklyTips = 0;
+  double _weeklyIncentivesAndBonuses = 0;
+  double _weeklyBreakdownTotal = 0;
+  double _weeklyCodToSettle = 0;
+
+  // Monthly (monthly) API fields.
+  double _monthlyTotalEarnings = 0;
+  int _monthlyTrips = 0;
+  String _monthlyOnlineDurationLabel = '0m';
+  double _monthlyTripFares = 0;
+  double _monthlyTips = 0;
+  double _monthlyIncentivesAndBonuses = 0;
+  double _monthlyBreakdownTotal = 0;
+  double _monthlyCodToSettle = 0;
 
   static const _periods = ['Today', 'This week', 'This month'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_selectedPeriod == 0) {
+        _ensureTodayLoaded();
+      }
+    });
+  }
+
+  Future<void> _ensureTodayLoaded() async {
+    if (_hasTodayData || _isLoadingToday) return;
+
+    setState(() => _isLoadingToday = true);
+    try {
+      final response =
+          await ApiService.instance.get('/drivers/earnings?period=daily');
+
+      if (response['success'] != true) {
+        final message = response['message']?.toString().trim();
+        throw ApiException(
+          (message != null && message.isNotEmpty)
+              ? message
+              : 'Failed to load daily earnings',
+        );
+      }
+
+      final data = response['data'];
+      if (data is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      final summaryRaw = data['summary'];
+      final breakdownRaw = data['breakdown'];
+      final walletRaw = data['wallet'];
+      if (summaryRaw is! Map || breakdownRaw is! Map || walletRaw is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      setState(() {
+        _todayTotalEarnings = _asDouble(summaryRaw['totalEarnings']);
+        _todayTrips = _asInt(summaryRaw['trips']);
+        _todayOnlineDurationLabel =
+            summaryRaw['onlineDurationLabel']?.toString() ?? '0m';
+
+        _todayTripFares = _asDouble(breakdownRaw['tripFares']);
+        _todayTips = _asDouble(breakdownRaw['tips']);
+        _todayIncentivesAndBonuses =
+            _asDouble(breakdownRaw['incentivesAndBonuses']);
+        _todayBreakdownTotal = _asDouble(breakdownRaw['total']);
+
+        _todayCodToSettle = _asDouble(walletRaw['codToSettle']);
+        _hasTodayData = true;
+      });
+    } catch (_) {
+      // Keep screen usable with existing hardcoded values (for non-today)
+      // and 0s for today until the next successful refresh.
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoadingToday = false);
+    }
+  }
+
+  Future<void> _ensureWeeklyLoaded() async {
+    if (_hasWeeklyData || _isLoadingWeekly) return;
+
+    setState(() => _isLoadingWeekly = true);
+    try {
+      final response =
+          await ApiService.instance.get('/drivers/earnings?period=weekly');
+
+      if (response['success'] != true) {
+        final message = response['message']?.toString().trim();
+        throw ApiException(
+          (message != null && message.isNotEmpty)
+              ? message
+              : 'Failed to load weekly earnings',
+        );
+      }
+
+      final data = response['data'];
+      if (data is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      final summaryRaw = data['summary'];
+      final breakdownRaw = data['breakdown'];
+      final walletRaw = data['wallet'];
+      if (summaryRaw is! Map || breakdownRaw is! Map || walletRaw is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      setState(() {
+        _weeklyTotalEarnings = _asDouble(summaryRaw['totalEarnings']);
+        _weeklyTrips = _asInt(summaryRaw['trips']);
+        _weeklyOnlineDurationLabel =
+            summaryRaw['onlineDurationLabel']?.toString() ?? '0m';
+
+        _weeklyTripFares = _asDouble(breakdownRaw['tripFares']);
+        _weeklyTips = _asDouble(breakdownRaw['tips']);
+        _weeklyIncentivesAndBonuses =
+            _asDouble(breakdownRaw['incentivesAndBonuses']);
+        _weeklyBreakdownTotal = _asDouble(breakdownRaw['total']);
+
+        _weeklyCodToSettle = _asDouble(walletRaw['codToSettle']);
+        _hasWeeklyData = true;
+      });
+    } catch (_) {
+      // Keep hardcoded values (for non-weekly UI) until the next refresh.
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoadingWeekly = false);
+    }
+  }
+
+  Future<void> _ensureMonthlyLoaded() async {
+    if (_hasMonthlyData || _isLoadingMonthly) return;
+
+    setState(() => _isLoadingMonthly = true);
+    try {
+      final response =
+          await ApiService.instance.get('/drivers/earnings?period=monthly');
+
+      if (response['success'] != true) {
+        final message = response['message']?.toString().trim();
+        throw ApiException(
+          (message != null && message.isNotEmpty)
+              ? message
+              : 'Failed to load monthly earnings',
+        );
+      }
+
+      final data = response['data'];
+      if (data is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      final summaryRaw = data['summary'];
+      final breakdownRaw = data['breakdown'];
+      final walletRaw = data['wallet'];
+      if (summaryRaw is! Map || breakdownRaw is! Map || walletRaw is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      setState(() {
+        _monthlyTotalEarnings = _asDouble(summaryRaw['totalEarnings']);
+        _monthlyTrips = _asInt(summaryRaw['trips']);
+        _monthlyOnlineDurationLabel =
+            summaryRaw['onlineDurationLabel']?.toString() ?? '0m';
+
+        _monthlyTripFares = _asDouble(breakdownRaw['tripFares']);
+        _monthlyTips = _asDouble(breakdownRaw['tips']);
+        _monthlyIncentivesAndBonuses =
+            _asDouble(breakdownRaw['incentivesAndBonuses']);
+        _monthlyBreakdownTotal = _asDouble(breakdownRaw['total']);
+
+        _monthlyCodToSettle = _asDouble(walletRaw['codToSettle']);
+        _hasMonthlyData = true;
+      });
+    } catch (_) {
+      // Keep hardcoded values (for non-monthly UI) until the next refresh.
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoadingMonthly = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +277,12 @@ class _EarningsScreenState extends State<EarningsScreen> {
           final selected = i == _selectedPeriod;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedPeriod = i),
+              onTap: () async {
+                setState(() => _selectedPeriod = i);
+                if (i == 0) await _ensureTodayLoaded();
+                if (i == 1) await _ensureWeeklyLoaded();
+                if (i == 2) await _ensureMonthlyLoaded();
+              },
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
@@ -106,6 +317,44 @@ class _EarningsScreenState extends State<EarningsScreen> {
   }
 
   Widget _buildSummaryCard() {
+    final isToday = _selectedPeriod == 0;
+    final isWeekly = _selectedPeriod == 1;
+    final isMonthly = _selectedPeriod == 2;
+    final totalText = isToday
+        ? (_hasTodayData ? _formatBhd3(_todayTotalEarnings) : 'BHD 86.400')
+        : (isWeekly
+            ? (_hasWeeklyData ? _formatBhd3(_weeklyTotalEarnings) : 'BHD 86.400')
+            : (isMonthly
+                ? (_hasMonthlyData
+                    ? _formatBhd3(_monthlyTotalEarnings)
+                    : 'BHD 86.400')
+                : 'BHD 86.400'));
+    final tripsText = isToday
+        ? (_hasTodayData ? '${_todayTrips} trips' : '32 trips')
+        : (isWeekly
+            ? (_hasWeeklyData ? '${_weeklyTrips} trips' : '32 trips')
+            : (isMonthly
+                ? (_hasMonthlyData ? '${_monthlyTrips} trips' : '32 trips')
+                : '32 trips'));
+    final onlineLabelText = isToday
+        ? (_hasTodayData
+            ? '$_todayOnlineDurationLabel online'
+            : '18h 20m online')
+        : (isWeekly
+            ? (_hasWeeklyData
+                ? '$_weeklyOnlineDurationLabel online'
+                : '18h 20m online')
+            : (isMonthly
+                ? (_hasMonthlyData
+                    ? '$_monthlyOnlineDurationLabel online'
+                    : '18h 20m online')
+                : '18h 20m online'));
+    final titleText = isToday
+        ? 'Today · earnings'
+        : isWeekly
+            ? 'This week · earnings'
+            : 'This month · earnings';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -116,8 +365,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'This week · earnings',
+          Text(
+            titleText,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -125,8 +374,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'BHD 86.400',
+          Text(
+            totalText,
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w700,
@@ -135,9 +384,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ),
           const SizedBox(height: 8),
           Row(
-            children: const [
+            children: [
               Text(
-                '32 trips',
+                tripsText,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -156,7 +405,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
               ),
               Text(
-                '18h 20m online',
+                onlineLabelText,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -208,6 +457,34 @@ class _EarningsScreenState extends State<EarningsScreen> {
   }
 
   Widget _buildBreakdownCard() {
+    final isToday = _selectedPeriod == 0;
+    final isWeekly = _selectedPeriod == 1;
+    final isMonthly = _selectedPeriod == 2;
+    final hasToday = isToday && _hasTodayData;
+    final hasWeekly = isWeekly && _hasWeeklyData;
+    final hasMonthly = isMonthly && _hasMonthlyData;
+
+    final tripFaresText = hasToday
+        ? _formatBhd3(_todayTripFares)
+        : (hasWeekly
+            ? _formatBhd3(_weeklyTripFares)
+            : (hasMonthly ? _formatBhd3(_monthlyTripFares) : 'BHD 72.000'));
+    final tipsText = hasToday
+        ? _formatBhd3(_todayTips)
+        : (hasWeekly ? _formatBhd3(_weeklyTips) : (hasMonthly ? _formatBhd3(_monthlyTips) : 'BHD 6.400'));
+    final incentivesText = hasToday
+        ? _formatBhd3(_todayIncentivesAndBonuses)
+        : (hasWeekly
+            ? _formatBhd3(_weeklyIncentivesAndBonuses)
+            : (hasMonthly
+                ? _formatBhd3(_monthlyIncentivesAndBonuses)
+                : 'BHD 8.000'));
+    final totalText = hasToday
+        ? _formatBhd3(_todayBreakdownTotal)
+        : (hasWeekly
+            ? _formatBhd3(_weeklyBreakdownTotal)
+            : (hasMonthly ? _formatBhd3(_monthlyBreakdownTotal) : 'BHD 86.400'));
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -218,7 +495,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Text(
             'Breakdown',
             style: TextStyle(
@@ -228,29 +505,42 @@ class _EarningsScreenState extends State<EarningsScreen> {
             ),
           ),
           SizedBox(height: 12),
-          _BreakdownRow(label: 'Trip fares', value: 'BHD 72.000'),
+          _BreakdownRow(label: 'Trip fares', value: tripFaresText),
           SizedBox(height: 10),
           _BreakdownRow(
             label: 'Tips',
-            value: 'BHD 6.400',
+            value: tipsText,
             valueColor: DocColors.greenDark,
           ),
           SizedBox(height: 10),
           _BreakdownRow(
             label: 'Incentives & bonuses',
-            value: 'BHD 8.000',
+            value: incentivesText,
             valueColor: DocColors.greenDark,
           ),
           SizedBox(height: 12),
           Divider(height: 1, thickness: 1, color: DocColors.cardBorder),
           SizedBox(height: 12),
-          _BreakdownRow(label: 'Total', value: 'BHD 86.400', bold: true),
+          _BreakdownRow(label: 'Total', value: totalText, bold: true),
         ],
       ),
     );
   }
 
   Widget _buildCodCard() {
+    final isToday = _selectedPeriod == 0;
+    final isWeekly = _selectedPeriod == 1;
+    final isMonthly = _selectedPeriod == 2;
+    final hasToday = isToday && _hasTodayData;
+    final hasWeekly = isWeekly && _hasWeeklyData;
+    final hasMonthly = isMonthly && _hasMonthlyData;
+
+    final codText = hasToday
+        ? _formatBhd3(_todayCodToSettle)
+        : (hasWeekly
+            ? _formatBhd3(_weeklyCodToSettle)
+            : (hasMonthly ? _formatBhd3(_monthlyCodToSettle) : 'BHD 24.500'));
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -263,7 +553,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'COD to settle',
                   style: TextStyle(
@@ -274,7 +564,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'BHD 24.500',
+                  codText,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -288,6 +578,20 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ],
       ),
     );
+  }
+
+  static double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static String _formatBhd3(double amount) {
+    return 'BHD ${amount.toStringAsFixed(3)}';
   }
 }
 
