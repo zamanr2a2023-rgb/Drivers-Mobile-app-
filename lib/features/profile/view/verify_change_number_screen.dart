@@ -1,14 +1,33 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/services/api_service.dart';
+
+class VerifyChangeNumberArgs {
+  const VerifyChangeNumberArgs({
+    required this.phone,
+    required this.countryCode,
+    required this.phoneDisplay,
+    this.expiresInSeconds = 300,
+  });
+
+  final String phone;
+  final String countryCode;
+  final String phoneDisplay;
+  final int expiresInSeconds;
+}
 
 /// Verify number — opened after "Send code" on Change number.
 class VerifyChangeNumberScreen extends StatefulWidget {
-  const VerifyChangeNumberScreen({super.key, required this.phoneDisplay});
+  const VerifyChangeNumberScreen({super.key, required this.args});
 
-  final String phoneDisplay;
+  final VerifyChangeNumberArgs args;
 
   @override
   State<VerifyChangeNumberScreen> createState() =>
@@ -17,13 +36,16 @@ class VerifyChangeNumberScreen extends StatefulWidget {
 
 class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
   static const int _otpLength = 4;
-  static const String _correctOtp = '5290';
+
+  final ProfileService _profileService = ProfileService();
 
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
 
   bool _isWrongCode = false;
-  int _resendSeconds = 24;
+  bool _isVerifying = false;
+  bool _isResending = false;
+  int _resendSeconds = 0;
   Timer? _resendTimer;
 
   @override
@@ -31,7 +53,7 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
     super.initState();
     _controllers = List.generate(_otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(_otpLength, (_) => FocusNode());
-    _startResendTimer();
+    _startResendTimer(widget.args.expiresInSeconds);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNodes[0].requestFocus();
     });
@@ -58,9 +80,10 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
     return _otpLength - 1;
   }
 
-  void _startResendTimer() {
+  void _startResendTimer([int? seconds]) {
     _resendTimer?.cancel();
-    _resendSeconds = 24;
+    final initial = seconds ?? widget.args.expiresInSeconds;
+    _resendSeconds = initial > 0 ? initial : 300;
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -96,31 +119,102 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
     setState(() => _isWrongCode = false);
   }
 
-  void _onVerify() {
+  Future<void> _onVerify() async {
     final otp = _otpCode;
-    if (otp.length < _otpLength || otp != _correctOtp) {
+    if (otp.length < _otpLength) {
       setState(() => _isWrongCode = true);
       return;
     }
+    if (_isVerifying) return;
 
-    showDocSnack(context, 'Number updated successfully');
-    Navigator.pop(context, true);
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isVerifying = true;
+      _isWrongCode = false;
+    });
+
+    try {
+      final result = await _profileService.verifyPhoneChange(
+        phone: widget.args.phone,
+        countryCode: widget.args.countryCode,
+        code: otp,
+      );
+      if (!mounted) return;
+
+      context.read<AuthProvider>().applyTokens(
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+          );
+
+      showDocSnack(context, result.message);
+      Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isWrongCode = true);
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isWrongCode = true);
+      showDocSnack(context, 'Failed to verify phone number');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+    }
   }
 
-  void _onResendCode() {
-    if (_resendSeconds > 0) return;
-    for (final c in _controllers) {
-      c.clear();
+  Future<void> _onResendCode() async {
+    // Match login OTP screen: resend is available after a wrong code.
+    if (_isVerifying || _isResending || !_isWrongCode) return;
+
+    final phone = widget.args.phone.trim();
+    final countryCode = widget.args.countryCode.trim();
+    if (phone.isEmpty || countryCode.isEmpty) {
+      showDocSnack(context, 'Phone number is missing. Please go back and try again.');
+      return;
     }
-    setState(() => _isWrongCode = false);
-    _startResendTimer();
-    _focusNodes[0].requestFocus();
-    showDocSnack(context, 'Verification code resent');
+
+    setState(() => _isResending = true);
+
+    try {
+      final result = await _profileService.resendPhoneChangeOtp(
+        phone: phone,
+        countryCode: countryCode,
+      );
+      if (!mounted) return;
+
+      for (final c in _controllers) {
+        c.clear();
+      }
+      setState(() => _isWrongCode = false);
+      _startResendTimer(result.expiresInSeconds);
+      _focusNodes[0].requestFocus();
+
+      if (kDebugMode) {
+        final devCode = result.devCode?.trim();
+        if (devCode != null && devCode.isNotEmpty) {
+          showDocSnack(context, 'Dev OTP: $devCode');
+        } else {
+          showDocSnack(context, result.message);
+        }
+      } else {
+        showDocSnack(context, result.message);
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(context, 'Failed to resend OTP. Please try again.');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isResending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final activeIndex = _activeIndex;
+    final busy = _isVerifying || _isResending;
 
     return Scaffold(
       backgroundColor: DocColors.accountBg,
@@ -159,7 +253,7 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Sent by SMS to ${widget.phoneDisplay}',
+                    'Sent by SMS to ${widget.args.phoneDisplay}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -175,12 +269,13 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
                         controller: _controllers[index],
                         focusNode: _focusNodes[index],
                         isActive: index == activeIndex,
+                        enabled: !busy,
                         onChanged: (value) => _onOtpChanged(index, value),
                       );
                     }),
                   ),
                   const SizedBox(height: 18),
-                  if (_isWrongCode || _resendSeconds <= 0)
+                  if (_isWrongCode)
                     Row(
                       children: [
                         const Text(
@@ -191,13 +286,15 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: _onResendCode,
-                          child: const Text(
-                            'Resend code',
+                          onTap: busy ? null : _onResendCode,
+                          child: Text(
+                            _isResending ? 'Sending…' : 'Resend code',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: DocColors.pillGreen,
+                              color: _isResending
+                                  ? DocColors.pillGreen.withValues(alpha: 0.6)
+                                  : DocColors.pillGreen,
                             ),
                           ),
                         ),
@@ -224,13 +321,23 @@ class _VerifyChangeNumberScreenState extends State<VerifyChangeNumberScreen> {
                       ],
                     ),
                   const SizedBox(height: 22),
-                  DocPrimaryButton(
-                    label: 'Verify & continue',
-                    color: DocColors.pillGreen,
-                    radius: 28,
-                    height: 52,
-                    onPressed: _onVerify,
-                  ),
+                  if (_isVerifying)
+                    const SizedBox(
+                      height: 52,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: DocColors.pillGreen,
+                        ),
+                      ),
+                    )
+                  else
+                    DocPrimaryButton(
+                      label: 'Verify & continue',
+                      color: DocColors.pillGreen,
+                      radius: 28,
+                      height: 52,
+                      onPressed: busy ? null : _onVerify,
+                    ),
                 ],
               ),
             );
@@ -248,12 +355,14 @@ class _OtpBox extends StatelessWidget {
     required this.focusNode,
     required this.isActive,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final double width;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool isActive;
+  final bool enabled;
   final ValueChanged<String> onChanged;
 
   @override
@@ -274,6 +383,7 @@ class _OtpBox extends StatelessWidget {
         child: TextField(
           controller: controller,
           focusNode: focusNode,
+          enabled: enabled,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           textAlignVertical: TextAlignVertical.center,

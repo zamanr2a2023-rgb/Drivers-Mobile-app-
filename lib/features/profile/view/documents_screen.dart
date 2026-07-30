@@ -1,14 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:yjeek_driver/core/constants/app_assets.dart';
+import 'package:yjeek_driver/features/profile/model/account_documents_model.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// D4 · Documents
-class DocumentsScreen extends StatelessWidget {
+class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
 
   @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  final ProfileService _profileService = ProfileService();
+
+  bool _isLoading = false;
+  AccountDocumentsModel? _documents;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDocuments();
+    });
+  }
+
+  Future<void> _loadDocuments() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final documents = await _profileService.getDocuments();
+      if (!mounted) return;
+      setState(() => _documents = documents);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(context, 'Failed to load documents');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _openChecklistItem(DocumentChecklistItemModel item) async {
+    final route = _routeForKey(item.key);
+    if (route == null) return;
+    await Navigator.pushNamed(context, route);
+    if (!mounted) return;
+    await _loadDocuments();
+  }
+
+  String? _routeForKey(String key) {
+    switch (key.trim().toLowerCase()) {
+      case 'cpr':
+        return RouteNames.uploadCpr;
+      case 'passport':
+        return RouteNames.uploadPassport;
+      case 'visa':
+        return RouteNames.uploadVisa;
+      case 'driving_license':
+        return RouteNames.uploadDrivingLicense;
+      case 'vehicle_registration':
+        return RouteNames.uploadVehicleRegistration;
+      case 'profile_photo':
+        return RouteNames.uploadProfilePhoto;
+      default:
+        return null;
+    }
+  }
+
+  String _iconForKey(String key) {
+    switch (key.trim().toLowerCase()) {
+      case 'cpr':
+        return AppAssets.docCpr;
+      case 'passport':
+        return AppAssets.docPassport;
+      case 'visa':
+        return AppAssets.docVisa;
+      case 'driving_license':
+        return AppAssets.docDrivingLicense;
+      case 'vehicle_registration':
+        return AppAssets.docVehicle;
+      case 'profile_photo':
+        return AppAssets.docProfilePhoto;
+      default:
+        return AppAssets.docCpr;
+    }
+  }
+
+  _DocStatus _statusForUi(String uiStatus) {
+    final normalized = uiStatus.trim().toLowerCase();
+    if (normalized.contains('done') ||
+        normalized.contains('approved') ||
+        normalized.contains('complete')) {
+      return _DocStatus.done;
+    }
+    if (normalized.contains('review') || normalized.contains('pending')) {
+      return _DocStatus.underReview;
+    }
+    return _DocStatus.required_;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final data = _documents;
+    final canSubmit = data?.canSubmitForReview == true;
+
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
@@ -17,77 +120,71 @@ class DocumentsScreen extends StatelessWidget {
           children: [
             const DocHeader(title: 'Documents'),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Column(
-                  children: [
-                    _buildProgressCard(),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docCpr,
-                      title: 'CPR / National ID',
-                      helper: 'Front & back uploaded',
-                      status: _DocStatus.done,
-                      onTap: () =>
-                          Navigator.pushNamed(context, RouteNames.uploadCpr),
+              child: _isLoading && data == null
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: DocColors.green,
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: DocColors.green,
+                      onRefresh: _loadDocuments,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: Column(
+                          children: [
+                            _buildProgressCard(data?.progress),
+                            const SizedBox(height: 14),
+                            if (data == null || data.checklist.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: Text(
+                                  'No documents found',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: DocColors.textSecondary,
+                                  ),
+                                ),
+                              )
+                            else
+                              ...[
+                                for (var i = 0;
+                                    i < data.checklist.length;
+                                    i++) ...[
+                                  if (i > 0) const SizedBox(height: 14),
+                                  _DocumentRow(
+                                    iconAsset: _iconForKey(data.checklist[i].key),
+                                    title: data.checklist[i].label,
+                                    helper: data.checklist[i].subtitle,
+                                    statusLabel: data.checklist[i].uiStatus,
+                                    status: _statusForUi(
+                                      data.checklist[i].uiStatus,
+                                    ),
+                                    onTap: () =>
+                                        _openChecklistItem(data.checklist[i]),
+                                  ),
+                                ],
+                              ],
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docPassport,
-                      title: 'Passport',
-                      helper: 'Photo page · number · expiry',
-                      status: _DocStatus.required_,
-                      onTap: () => Navigator.pushNamed(
-                          context, RouteNames.uploadPassport),
-                    ),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docVisa,
-                      title: 'Visa',
-                      helper: 'Number · expiry date',
-                      status: _DocStatus.required_,
-                      onTap: () =>
-                          Navigator.pushNamed(context, RouteNames.uploadVisa),
-                    ),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docDrivingLicense,
-                      title: 'Driving license',
-                      helper: 'Valid until 2028',
-                      status: _DocStatus.underReview,
-                      onTap: () => Navigator.pushNamed(
-                          context, RouteNames.uploadDrivingLicense),
-                    ),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docVehicle,
-                      title: 'Vehicle registration',
-                      helper: 'Card · details · photos · insurance',
-                      status: _DocStatus.done,
-                      onTap: () => Navigator.pushNamed(
-                          context, RouteNames.uploadVehicleRegistration),
-                    ),
-                    const SizedBox(height: 14),
-                    _DocumentRow(
-                      iconAsset: AppAssets.docProfilePhoto,
-                      title: 'Profile photo',
-                      helper: 'Clear face photo',
-                      status: _DocStatus.done,
-                      onTap: () => Navigator.pushNamed(
-                          context, RouteNames.uploadProfilePhoto),
-                    ),
-                  ],
-                ),
-              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: DocPrimaryButton(
                 label: 'Submit for review',
-                onPressed: () {
-                  showDocSnack(context, 'Documents submitted for review');
-                  Navigator.maybePop(context);
-                },
+                color: canSubmit ? DocColors.green : const Color(0xFFB7C5B7),
+                onPressed: canSubmit
+                    ? () {
+                        showDocSnack(
+                          context,
+                          'Documents submitted for review',
+                        );
+                        Navigator.maybePop(context);
+                      }
+                    : null,
               ),
             ),
           ],
@@ -96,7 +193,13 @@ class DocumentsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressCard() {
+  Widget _buildProgressCard(DocumentsProgressModel? progress) {
+    final label = (progress?.label.trim().isNotEmpty == true)
+        ? progress!.label
+        : '0 of 0 completed';
+    final almostThere = progress?.almostThere == true;
+    final value = progress?.fraction ?? 0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -110,33 +213,35 @@ class DocumentsScreen extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               Text(
-                '4 of 7 completed',
-                style: TextStyle(
+                label,
+                style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: DocColors.textPrimary,
                 ),
               ),
-              Text(
-                'Almost there',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                  color: DocColors.greenDark,
+              if (almostThere)
+                const Text(
+                  'Almost there',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: DocColors.greenDark,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: const LinearProgressIndicator(
-              value: 4 / 7,
+            child: LinearProgressIndicator(
+              value: value,
               minHeight: 8,
               backgroundColor: DocColors.doneBg,
-              valueColor: AlwaysStoppedAnimation<Color>(DocColors.green),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(DocColors.green),
             ),
           ),
         ],
@@ -152,6 +257,7 @@ class _DocumentRow extends StatelessWidget {
     required this.title,
     required this.helper,
     required this.status,
+    required this.statusLabel,
     required this.onTap,
     required this.iconAsset,
   });
@@ -159,6 +265,7 @@ class _DocumentRow extends StatelessWidget {
   final String iconAsset;
   final String title;
   final String helper;
+  final String statusLabel;
   final _DocStatus status;
   final VoidCallback onTap;
 
@@ -232,13 +339,18 @@ class _DocumentRow extends StatelessWidget {
   }
 
   Widget _statusBadge() {
-    final (String label, Color bg, Color fg) = switch (status) {
-      _DocStatus.done => ('Done', DocColors.doneBg, DocColors.greenDark),
-      _DocStatus.required_ =>
-        ('Required', DocColors.warnBg, DocColors.warnText),
-      _DocStatus.underReview =>
-        ('Under review', DocColors.reviewBg, DocColors.reviewText),
+    final (Color bg, Color fg) = switch (status) {
+      _DocStatus.done => (DocColors.doneBg, DocColors.greenDark),
+      _DocStatus.required_ => (DocColors.warnBg, DocColors.warnText),
+      _DocStatus.underReview => (DocColors.reviewBg, DocColors.reviewText),
     };
+    final label = statusLabel.trim().isEmpty
+        ? switch (status) {
+            _DocStatus.done => 'Done',
+            _DocStatus.required_ => 'Required',
+            _DocStatus.underReview => 'Under review',
+          }
+        : statusLabel;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
