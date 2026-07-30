@@ -27,6 +27,15 @@ class ApiEndpoints {
   static const String driverProfile = '/drivers/profile';
   static const String accountPersonal = '/drivers/account/personal';
   static const String accountAvatar = '/drivers/account/avatar';
+  static const String accountLanguage = '/drivers/account/language';
+  static const String accountLogout = '/drivers/account/logout';
+  static const String accountPhoneSendOtp = '/drivers/account/phone/send-otp';
+  static const String accountPhoneVerify = '/drivers/account/phone/verify';
+  static const String accountVehicle = '/drivers/account/vehicle';
+  static const String accountDocuments = '/drivers/account/documents';
+
+  static String accountDocument(String type) =>
+      '/drivers/account/documents/$type';
 
   /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos
   static String uploads({required String category}) =>

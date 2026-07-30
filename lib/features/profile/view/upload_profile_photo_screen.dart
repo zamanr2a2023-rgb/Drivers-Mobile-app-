@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/services/api_service.dart';
@@ -16,6 +18,7 @@ class UploadProfilePhotoScreen extends StatefulWidget {
 
 class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
   final ProfileService _profileService = ProfileService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   Uint8List? _photoBytes;
   String? _avatarUrl;
@@ -42,13 +45,94 @@ class _UploadProfilePhotoScreenState extends State<UploadProfilePhotoScreen> {
     }
   }
 
+  Future<ImageSource?> _chooseSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: DocColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  bool _isPermissionError(PlatformException e) {
+    final code = e.code.toLowerCase();
+    final message = (e.message ?? '').toLowerCase();
+    return code.contains('photo') ||
+        code.contains('camera') ||
+        code.contains('permission') ||
+        message.contains('permission') ||
+        message.contains('access') ||
+        message.contains('denied') ||
+        message.contains('not authorized');
+  }
+
   Future<void> _pick() async {
-    final bytes = await pickDocPhoto(context);
-    if (bytes != null) {
+    final source = await _chooseSource();
+    if (source == null || !mounted) return;
+
+    try {
+      // Let image_picker trigger the native iOS/Android permission dialog.
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        preferredCameraDevice: CameraDevice.front,
+      );
+      if (picked == null || !mounted) return;
+
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
       setState(() {
         _photoBytes = bytes;
         _avatarUrl = null;
       });
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      if (_isPermissionError(e)) {
+        showDocSnack(
+          context,
+          source == ImageSource.camera
+              ? 'Camera permission is required. Enable Camera in Settings > Yjeek Driver.'
+              : 'Photo permission is required. Enable Photos in Settings > Yjeek Driver.',
+        );
+        return;
+      }
+      final message = (e.message ?? '').trim();
+      showDocSnack(
+        context,
+        message.isNotEmpty
+            ? message
+            : source == ImageSource.camera
+                ? 'Unable to open camera. Please try again.'
+                : 'Unable to access photos. Please try again.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(
+        context,
+        source == ImageSource.camera
+            ? 'Unable to open camera. Please try again.'
+            : 'Unable to access photos. Please try again.',
+      );
     }
   }
 

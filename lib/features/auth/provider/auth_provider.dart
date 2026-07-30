@@ -171,4 +171,14 @@ class AuthProvider extends ChangeNotifier {
     _restoreFuture = null;
     notifyListeners();
   }
+
+  /// Updates in-memory tokens after account phone change (or similar flows).
+  void applyTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) {
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
+    notifyListeners();
+  }
 }

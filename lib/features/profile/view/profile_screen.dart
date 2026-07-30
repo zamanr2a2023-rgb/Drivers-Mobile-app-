@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _autoAccept = false;
 
   bool _isLoadingAccount = false;
+  bool _isLoggingOut = false;
 
   String _firstName = 'Ahmed';
   String _lastName = 'Khalid';
@@ -173,8 +174,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _loadAccount();
   }
 
-  void _logout() {
-    context.read<AuthProvider>().logout();
+  Future<void> _logout() async {
+    if (_isLoggingOut) return;
+    setState(() => _isLoggingOut = true);
+
+    try {
+      await _profileService.logoutAccount();
+    } on ApiException {
+      // Still clear local session so the user can leave the account.
+    } catch (_) {
+      // Still clear local session so the user can leave the account.
+    }
+
+    if (!mounted) return;
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
       RouteNames.login,
@@ -536,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       borderRadius: BorderRadius.circular(13),
       child: InkWell(
         borderRadius: BorderRadius.circular(13),
-        onTap: _logout,
+        onTap: _isLoggingOut ? null : _logout,
         child: Container(
           width: double.infinity,
           height: 48,

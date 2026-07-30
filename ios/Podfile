@@ -43,9 +43,14 @@ post_install do |installer|
       defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
       defs = defs.is_a?(Array) ? defs : ['$(inherited)', defs].compact
       defs << '$(inherited)' unless defs.include?('$(inherited)')
-      # Required so permission_handler can request location on iOS.
+      # Required so permission_handler reports correct statuses on iOS.
       # Without these macros, status incorrectly returns permanentlyDenied.
-      %w[PERMISSION_LOCATION=1 PERMISSION_LOCATION_WHENINUSE=1].each do |macro|
+      %w[
+        PERMISSION_LOCATION=1
+        PERMISSION_LOCATION_WHENINUSE=1
+        PERMISSION_CAMERA=1
+        PERMISSION_PHOTOS=1
+      ].each do |macro|
         defs << macro unless defs.include?(macro)
       end
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs

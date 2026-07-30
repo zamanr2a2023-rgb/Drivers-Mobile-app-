@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// DA3 · Language
 class LanguageScreen extends StatefulWidget {
@@ -13,11 +15,14 @@ class LanguageScreen extends StatefulWidget {
 
 class _LanguageScreenState extends State<LanguageScreen> {
   static const _languages = [
-    (primary: 'English', secondary: 'English', value: 'English'),
-    (primary: 'العربية', secondary: 'Arabic', value: 'Arabic'),
+    (primary: 'English', secondary: 'English', value: 'English', code: 'en'),
+    (primary: 'العربية', secondary: 'Arabic', value: 'Arabic', code: 'ar'),
   ];
 
+  final ProfileService _profileService = ProfileService();
+
   late String _selected;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -26,12 +31,59 @@ class _LanguageScreenState extends State<LanguageScreen> {
     _selected = _languages.any((l) => l.value == current)
         ? current
         : _languages.first.value;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentLanguage();
+    });
   }
 
-  void _save() {
-    context.read<SettingsProvider>().setLanguage(_selected);
-    showDocSnack(context, 'Language set to $_selected');
-    Navigator.pop(context);
+  String _valueForCode(String? code) {
+    final normalized = code?.trim().toLowerCase() ?? '';
+    for (final lang in _languages) {
+      if (lang.code == normalized) return lang.value;
+    }
+    return _languages.first.value;
+  }
+
+  String get _selectedCode {
+    for (final lang in _languages) {
+      if (lang.value == _selected) return lang.code;
+    }
+    return _languages.first.code;
+  }
+
+  Future<void> _loadCurrentLanguage() async {
+    try {
+      final personal = await _profileService.getPersonalAccount();
+      if (!mounted) return;
+      setState(() => _selected = _valueForCode(personal.language));
+    } catch (_) {
+      // Keep local selection on failure.
+    }
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final savedCode = await _profileService.updateLanguage(_selectedCode);
+      if (!mounted) return;
+
+      final displayValue = _valueForCode(savedCode);
+      context.read<SettingsProvider>().setLanguage(displayValue);
+      showDocSnack(context, 'Language set to $displayValue');
+      Navigator.pop(context);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(context, 'Failed to update language');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -53,13 +105,23 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     const SizedBox(height: 14),
                     _buildInfoBanner(),
                     const SizedBox(height: 22),
-                    DocPrimaryButton(
-                      label: 'Save',
-                      color: DocColors.pillGreen,
-                      radius: 28,
-                      height: 52,
-                      onPressed: _save,
-                    ),
+                    if (_isSaving)
+                      const SizedBox(
+                        height: 52,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: DocColors.pillGreen,
+                          ),
+                        ),
+                      )
+                    else
+                      DocPrimaryButton(
+                        label: 'Save',
+                        color: DocColors.pillGreen,
+                        radius: 28,
+                        height: 52,
+                        onPressed: _save,
+                      ),
                   ],
                 ),
               ),
@@ -96,11 +158,11 @@ class _LanguageScreenState extends State<LanguageScreen> {
   }
 
   Widget _buildLanguageRow(
-    ({String primary, String secondary, String value}) lang,
+    ({String primary, String secondary, String value, String code}) lang,
   ) {
     final selected = _selected == lang.value;
     return InkWell(
-      onTap: () => setState(() => _selected = lang.value),
+      onTap: _isSaving ? null : () => setState(() => _selected = lang.value),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(

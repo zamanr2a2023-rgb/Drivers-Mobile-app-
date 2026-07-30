@@ -58,6 +58,13 @@ class ApiService {
     return _request('PATCH', endpoint, body: body);
   }
 
+  Future<Map<String, dynamic>> put(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) {
+    return _request('PUT', endpoint, body: body);
+  }
+
   /// Multipart PATCH for file uploads.
   Future<Map<String, dynamic>> patchMultipart(
     String endpoint, {
