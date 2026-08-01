@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
+import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/services/api_service.dart';
@@ -96,6 +101,156 @@ class OrderService {
 
     try {
       return JobsBoardJob.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Full job detail for `GET /drivers/jobs/:jobId`.
+  Future<JobDetailModel> getJobById(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.get(ApiEndpoints.jobById(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to load job details'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Marks the driver as arrived at the customer.
+  Future<JobDetailModel> arriveAtCustomer(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobArriveCustomer(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to mark arrived at customer'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Uploads a delivery proof photo and returns its public URL.
+  Future<String> uploadDeliveryProof({
+    required Uint8List bytes,
+    String filename = 'delivery-proof.jpg',
+  }) async {
+    final response = await _api.postMultipart(
+      ApiEndpoints.uploads(category: 'delivery-proofs'),
+      fieldName: 'file',
+      bytes: bytes,
+      filename: filename,
+      contentType: 'image/jpeg',
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to upload delivery photo'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    final url = data['url']?.toString().trim() ?? '';
+    if (url.isEmpty) {
+      throw ApiException('Invalid response from server');
+    }
+    return url;
+  }
+
+  /// Completes the job with proof of delivery.
+  Future<JobCompleteResult> completeJob({
+    required String jobId,
+    required String deliveryPhotoUrl,
+    required bool cashCollected,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final photoUrl = deliveryPhotoUrl.trim();
+    if (photoUrl.isEmpty) {
+      throw ApiException('Delivery photo is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobComplete(id),
+      body: {
+        'deliveryPhotoUrl': photoUrl,
+        'cashCollected': cashCollected,
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to complete delivery'),
+      );
+    }
+
+    try {
+      return JobCompleteResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Logs a contact attempt (e.g. CALL) for unable-to-deliver rules.
+  Future<ContactAttemptsResult> logContactAttempt({
+    required String jobId,
+    String type = 'CALL',
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobContactAttempts(id),
+      body: {'type': type.trim().isEmpty ? 'CALL' : type.trim().toUpperCase()},
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to log contact attempt'),
+      );
+    }
+
+    try {
+      return ContactAttemptsResult.fromJson(response);
     } on FormatException {
       throw ApiException('Invalid response from server');
     }

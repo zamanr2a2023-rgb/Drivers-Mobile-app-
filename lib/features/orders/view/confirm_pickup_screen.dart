@@ -195,6 +195,7 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
       return Scaffold(
         backgroundColor: Colors.white,
         body: DeliverToCustomerScreen(
+          jobId: widget.args.orderId,
           onBack: _closeDeliverToCustomer,
         ),
       );

@@ -356,7 +356,7 @@ class AppRoutes {
       case RouteNames.verifyHandover:
         return _page(VerifyHandoverScreen(args: _incidentArgs(settings)));
       case RouteNames.safetyHelp:
-        return _page(const SafetyHelpScreen());
+        return _page(SafetyHelpScreen(jobId: _safetyHelpJobId(settings)));
       case RouteNames.dispatchChat:
         return _page(const DispatchChatScreen());
       case RouteNames.dispatchCantReachChat:
@@ -436,6 +436,16 @@ class AppRoutes {
       );
     }
     return const IncidentContextArgs();
+  }
+
+  static String? _safetyHelpJobId(RouteSettings settings) {
+    final args = settings.arguments;
+    if (args is String && args.trim().isNotEmpty) return args.trim();
+    if (args is Map) {
+      final jobId = args['jobId']?.toString().trim();
+      if (jobId != null && jobId.isNotEmpty) return jobId;
+    }
+    return null;
   }
 
   static MaterialPageRoute<dynamic> _page(Widget child) {
