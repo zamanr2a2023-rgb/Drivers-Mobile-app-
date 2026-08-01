@@ -1,8 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:yjeek_driver/core/constants/app_assets.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/incidents_safety/view/incident_ui.dart';
+import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// DR4 · Can’t reach customer
@@ -45,8 +50,67 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
     return '$m:$s';
   }
 
+  String? _resolveJobId(OrderProvider orders) {
+    final detailId = orders.currentJobDetail?.id.trim();
+    if (detailId != null && detailId.isNotEmpty) return detailId;
+    if (orders.instantActiveJobs.isNotEmpty) {
+      final activeId = orders.instantActiveJobs.first.id.trim();
+      if (activeId.isNotEmpty) return activeId;
+    }
+    return null;
+  }
+
+  Future<void> _logCallAttempt() async {
+    final orders = context.read<OrderProvider>();
+    if (orders.isLoggingContactAttempt) return;
+
+    final jobId = _resolveJobId(orders);
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'No active job found',
+        isError: true,
+      );
+      return;
+    }
+
+    final phone = orders.currentJobDetail?.order.customer.displayPhone;
+    if (phone != null && phone.trim().isNotEmpty && phone != '—') {
+      final uri = Uri(scheme: 'tel', path: phone.replaceAll(' ', ''));
+      try {
+        await launchUrl(uri);
+      } catch (_) {
+        // Still log the attempt even if dialer fails.
+      }
+    }
+
+    final result = await orders.logContactAttempt(jobId: jobId, type: 'CALL');
+    if (!mounted) return;
+
+    if (result != null) {
+      showIncidentSnack(
+        context,
+        result.message ?? 'Call attempt logged',
+      );
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      orders.contactAttemptError ?? 'Failed to log contact attempt',
+      isError: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final orders = context.watch<OrderProvider>();
+    final attemptsData = orders.contactAttempts;
+    final attempts = attemptsData?.attempts ?? const <ContactAttempt>[];
+    final requiredCount = attemptsData?.requiredForUnableToDeliver ?? 2;
+    final canMarkUnable = attemptsData?.canMarkUnableToDeliver ?? false;
+    final isLogging = orders.isLoggingContactAttempt;
+
     return Scaffold(
       backgroundColor: IncidentColors.screenBg,
       body: SafeArea(
@@ -65,24 +129,39 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Two documented attempts required',
-                          style: TextStyle(
+                        Text(
+                          requiredCount == 1
+                              ? 'One documented attempt required'
+                              : '$requiredCount documented attempts required',
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: IncidentColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _AttemptRow(
-                          title: 'Attempt 1 · Call',
-                          subtitle: 'Logged 13:42',
-                        ),
-                        const SizedBox(height: 10),
-                        _AttemptRow(
-                          title: 'Attempt 2 · In-app message',
-                          subtitle: 'Logged 13:44',
-                        ),
+                        if (attempts.isEmpty)
+                          const Text(
+                            'No attempts logged yet',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: IncidentColors.textMuted,
+                            ),
+                          )
+                        else
+                          ...List.generate(attempts.length, (index) {
+                            final attempt = attempts[index];
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == attempts.length - 1 ? 0 : 10,
+                              ),
+                              child: _AttemptRow(
+                                title:
+                                    'Attempt ${index + 1} · ${attempt.titleLabel}',
+                                subtitle: attempt.loggedLabel,
+                              ),
+                            );
+                          }),
                       ],
                     ),
                   ),
@@ -115,14 +194,13 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
                     children: [
                       Expanded(
                         child: IncidentOutlinedButton(
-                          label: 'Call',
+                          label: isLogging ? 'Logging…' : 'Call',
                           leading: const Icon(
                             Icons.call,
                             size: 18,
                             color: IncidentColors.textPrimary,
                           ),
-                          onPressed: () =>
-                              showIncidentSnack(context, 'Calling customer…'),
+                          onPressed: isLogging ? null : _logCallAttempt,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -145,13 +223,15 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
                   const SizedBox(height: 14),
                   IncidentPrimaryButton(
                     label: 'Mark as unable to deliver',
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        RouteNames.dispatchCantReachChat,
-                        arguments: widget.args,
-                      );
-                    },
+                    onPressed: canMarkUnable
+                        ? () {
+                            Navigator.pushNamed(
+                              context,
+                              RouteNames.dispatchCantReachChat,
+                              arguments: widget.args,
+                            );
+                          }
+                        : null,
                   ),
                 ],
               ),

@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/features/orders/service/order_service.dart';
@@ -15,6 +18,10 @@ class OrderProvider extends ChangeNotifier {
   bool _isLoadingOffers = false;
   bool _isLoadingInstantBoard = false;
   bool _isLoadingScheduledNewBoard = false;
+  bool _isLoadingJobDetail = false;
+  bool _isArrivingAtCustomer = false;
+  bool _isCompletingJob = false;
+  bool _isLoggingContactAttempt = false;
   List<OrderModel> _orders = [];
   List<JobOfferModel> _offers = const [];
   List<JobsBoardJob> _instantActiveJobs = const [];
@@ -25,9 +32,16 @@ class OrderProvider extends ChangeNotifier {
   OrderModel? _currentOrder;
   OrderModel? _newRequest;
   JobOfferModel? _currentOffer;
+  JobDetailModel? _currentJobDetail;
+  JobCompleteResult? _lastCompleteResult;
+  ContactAttemptsResult? _contactAttempts;
   String? _offersError;
   String? _instantBoardError;
   String? _scheduledNewBoardError;
+  String? _jobDetailError;
+  String? _arriveCustomerError;
+  String? _completeJobError;
+  String? _contactAttemptError;
   String _filter = 'Active';
   int _deliveryStep = 0;
 
@@ -42,6 +56,10 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoadingOffers => _isLoadingOffers;
   bool get isLoadingInstantBoard => _isLoadingInstantBoard;
   bool get isLoadingScheduledNewBoard => _isLoadingScheduledNewBoard;
+  bool get isLoadingJobDetail => _isLoadingJobDetail;
+  bool get isArrivingAtCustomer => _isArrivingAtCustomer;
+  bool get isCompletingJob => _isCompletingJob;
+  bool get isLoggingContactAttempt => _isLoggingContactAttempt;
   List<OrderModel> get orders => _orders;
   List<JobOfferModel> get offers => _offers;
   List<JobsBoardJob> get instantActiveJobs => _instantActiveJobs;
@@ -53,9 +71,17 @@ class OrderProvider extends ChangeNotifier {
   OrderModel? get currentOrder => _currentOrder;
   OrderModel? get newRequest => _newRequest;
   JobOfferModel? get currentOffer => _currentOffer;
+  JobDetailModel? get currentJobDetail => _currentJobDetail;
+  JobCompleteResult? get lastCompleteResult => _lastCompleteResult;
+  ContactAttemptsResult? get contactAttempts =>
+      _contactAttempts ?? _currentJobDetail?.contactAttempts;
   String? get offersError => _offersError;
   String? get instantBoardError => _instantBoardError;
   String? get scheduledNewBoardError => _scheduledNewBoardError;
+  String? get jobDetailError => _jobDetailError;
+  String? get arriveCustomerError => _arriveCustomerError;
+  String? get completeJobError => _completeJobError;
+  String? get contactAttemptError => _contactAttemptError;
   String get filter => _filter;
   int get deliveryStep => _deliveryStep;
   String get currentStepLabel =>
@@ -205,6 +231,124 @@ class OrderProvider extends ChangeNotifier {
     _currentOrder = await _orderService.getOrderById(id);
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> loadJobDetail(String jobId) async {
+    _isLoadingJobDetail = true;
+    _jobDetailError = null;
+    notifyListeners();
+
+    try {
+      _currentJobDetail = await _orderService.getJobById(jobId);
+      _contactAttempts = _currentJobDetail?.contactAttempts;
+    } on ApiException catch (e) {
+      _jobDetailError = e.message;
+      _currentJobDetail = null;
+    } catch (_) {
+      _jobDetailError = 'Failed to load job details';
+      _currentJobDetail = null;
+    } finally {
+      _isLoadingJobDetail = false;
+      notifyListeners();
+    }
+  }
+
+  void clearJobDetail() {
+    _currentJobDetail = null;
+    _lastCompleteResult = null;
+    _contactAttempts = null;
+    _jobDetailError = null;
+    _arriveCustomerError = null;
+    _completeJobError = null;
+    _contactAttemptError = null;
+    _isLoadingJobDetail = false;
+    _isArrivingAtCustomer = false;
+    _isCompletingJob = false;
+    _isLoggingContactAttempt = false;
+    notifyListeners();
+  }
+
+  /// `POST /drivers/jobs/:jobId/arrive-customer`
+  Future<bool> arriveAtCustomer(String jobId) async {
+    _isArrivingAtCustomer = true;
+    _arriveCustomerError = null;
+    notifyListeners();
+
+    try {
+      _currentJobDetail = await _orderService.arriveAtCustomer(jobId);
+      return true;
+    } on ApiException catch (e) {
+      _arriveCustomerError = e.message;
+      return false;
+    } catch (_) {
+      _arriveCustomerError = 'Failed to mark arrived at customer';
+      return false;
+    } finally {
+      _isArrivingAtCustomer = false;
+      notifyListeners();
+    }
+  }
+
+  /// Upload proof photo then `POST /drivers/jobs/:jobId/complete`.
+  Future<JobCompleteResult?> completeJob({
+    required String jobId,
+    required Uint8List deliveryPhotoBytes,
+    required bool cashCollected,
+  }) async {
+    _isCompletingJob = true;
+    _completeJobError = null;
+    _lastCompleteResult = null;
+    notifyListeners();
+
+    try {
+      final photoUrl = await _orderService.uploadDeliveryProof(
+        bytes: deliveryPhotoBytes,
+      );
+      final result = await _orderService.completeJob(
+        jobId: jobId,
+        deliveryPhotoUrl: photoUrl,
+        cashCollected: cashCollected,
+      );
+      _lastCompleteResult = result;
+      return result;
+    } on ApiException catch (e) {
+      _completeJobError = e.message;
+      return null;
+    } catch (_) {
+      _completeJobError = 'Failed to complete delivery';
+      return null;
+    } finally {
+      _isCompletingJob = false;
+      notifyListeners();
+    }
+  }
+
+  /// `POST /drivers/jobs/:jobId/contact-attempts`
+  Future<ContactAttemptsResult?> logContactAttempt({
+    required String jobId,
+    String type = 'CALL',
+  }) async {
+    _isLoggingContactAttempt = true;
+    _contactAttemptError = null;
+    notifyListeners();
+
+    try {
+      final result = await _orderService.logContactAttempt(
+        jobId: jobId,
+        type: type,
+      );
+      _contactAttempts = result;
+      return result;
+    } on ApiException catch (e) {
+      _contactAttemptError = e.message;
+      return null;
+    } catch (_) {
+      _contactAttemptError = 'Failed to log contact attempt';
+      return null;
+    } finally {
+      _isLoggingContactAttempt = false;
+      notifyListeners();
+    }
   }
 
   void acceptOrder() {

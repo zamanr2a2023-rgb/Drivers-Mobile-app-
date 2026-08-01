@@ -15,6 +15,7 @@ class ApiEndpoints {
   static const String goOffline = '/drivers/go-offline';
   static const String driverStatus = '/drivers/status';
   static const String autoAccept = '/drivers/settings/auto-accept';
+  static const String driverSos = '/drivers/sos';
 
   // Earnings
   static const String earnings = '/drivers/earnings';
@@ -54,6 +55,13 @@ class ApiEndpoints {
   // Jobs
   static const String jobOffers = '/drivers/jobs/offers';
   static const String jobActive = '/drivers/jobs/active';
+  static String jobById(String jobId) => '/drivers/jobs/$jobId';
+  static String jobSos(String jobId) => '/drivers/jobs/$jobId/sos';
+  static String jobArriveCustomer(String jobId) =>
+      '/drivers/jobs/$jobId/arrive-customer';
+  static String jobComplete(String jobId) => '/drivers/jobs/$jobId/complete';
+  static String jobContactAttempts(String jobId) =>
+      '/drivers/jobs/$jobId/contact-attempts';
   static String jobsHistory({
     String type = 'all',
     bool includeCancelled = true,

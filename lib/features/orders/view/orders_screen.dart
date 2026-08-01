@@ -55,6 +55,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _showReleaseScreen = false;
   bool _showRejectScreen = false;
   bool _showDeliverToCustomer = false;
+  String _activeJobId = '';
   String _releaseOrderId = '#YJK-...52';
   String _rejectOrderId = '#YJK-...50';
   String _rejectJobId = '';
@@ -256,8 +257,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
-  void _openDeliverToCustomer() {
+  void _openDeliverToCustomer(String jobId) {
     setState(() {
+      _activeJobId = jobId;
       _showDeliverToCustomer = true;
       _showRejectScreen = false;
       _showReleaseScreen = false;
@@ -268,6 +270,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _closeDeliverToCustomer() {
     setState(() {
       _showDeliverToCustomer = false;
+      _activeJobId = '';
       _segment = 0; // Back to Instant
     });
   }
@@ -335,6 +338,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       return Scaffold(
         backgroundColor: Colors.white,
         body: DeliverToCustomerScreen(
+          jobId: _activeJobId,
           onBack: _closeDeliverToCustomer,
         ),
       );
@@ -447,7 +451,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 class _InstantOrdersBody extends StatelessWidget {
   const _InstantOrdersBody({required this.onContinue});
 
-  final VoidCallback onContinue;
+  final ValueChanged<String> onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -527,7 +531,7 @@ class _InstantOrdersBody extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _ActiveOrderCard(
                   job: job,
-                  onContinue: onContinue,
+                  onContinue: () => onContinue(job.id),
                 ),
               ),
             ),
