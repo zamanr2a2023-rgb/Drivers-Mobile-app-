@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Age-restricted delivery verification for Scheduled Vape orders.
+/// Confirm calls upload + `POST /drivers/jobs/:jobId/complete` with ageVerification.
 class AgeRestrictedDeliveryScreen extends StatefulWidget {
   const AgeRestrictedDeliveryScreen({
     super.key,
@@ -150,11 +154,80 @@ class _AgeRestrictedDeliveryScreenState
     }
   }
 
-  void _confirmDelivery() {
-    Navigator.pushNamed(
+  String? _resolveJobId(OrderProvider orders) {
+    final detailId = orders.currentJobDetail?.id.trim();
+    if (detailId != null &&
+        detailId.isNotEmpty &&
+        !detailId.startsWith('#')) {
+      return detailId;
+    }
+
+    if (orders.instantActiveJobs.isNotEmpty) {
+      final activeId = orders.instantActiveJobs.first.id.trim();
+      if (activeId.isNotEmpty && !activeId.startsWith('#')) return activeId;
+    }
+
+    final orderId = order.orderId.trim();
+    if (orderId.isNotEmpty && !orderId.startsWith('#')) return orderId;
+
+    return null;
+  }
+
+  Future<void> _confirmDelivery() async {
+    if (!_hasCprPhoto || _cprPhotoBytes == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'Please add the customer CPR photo',
+        isError: true,
+      );
+      return;
+    }
+    if (!_hasProofPhoto || _proofPhotoBytes == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'Please add proof of delivery photo',
+        isError: true,
+      );
+      return;
+    }
+
+    final provider = context.read<OrderProvider>();
+    if (provider.isCompletingJob) return;
+
+    final jobId = _resolveJobId(provider);
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'No active job found to complete',
+        isError: true,
+      );
+      return;
+    }
+
+    final result = await provider.completeAgeRestrictedJob(
+      jobId: jobId,
+      ageVerificationPhotoBytes: _cprPhotoBytes!,
+      deliveryPhotoBytes: _proofPhotoBytes!,
+      nameMatches: true,
+      photoMatches: true,
+      verified18OrOlder: true,
+    );
+    if (!mounted) return;
+
+    if (result != null) {
+      AppHelpers.showSnackBar(context, result.message);
+      Navigator.pushNamed(
+        context,
+        RouteNames.scheduledVapeDeliveryCompleted,
+        arguments: order,
+      );
+      return;
+    }
+
+    AppHelpers.showSnackBar(
       context,
-      RouteNames.scheduledVapeDeliveryCompleted,
-      arguments: order,
+      provider.completeJobError ?? 'Failed to complete age-restricted delivery',
+      isError: true,
     );
   }
 
@@ -563,6 +636,8 @@ class _AgeRestrictedDeliveryScreenState
   }
 
   Widget _buildConfirmButton() {
+    final isCompleting = context.watch<OrderProvider>().isCompletingJob;
+
     return SizedBox(
       width: double.infinity,
       height: 52.sh,
@@ -570,20 +645,29 @@ class _AgeRestrictedDeliveryScreenState
         color: _headerGreen,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: _confirmDelivery,
+          onTap: isCompleting ? null : _confirmDelivery,
           borderRadius: BorderRadius.circular(14),
           child: Center(
-            child: Text(
-              'Confirm 18+ & complete delivery',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15.ssp,
-                fontWeight: FontWeight.w700,
-                color: _white,
-                height: 1.2,
-              ),
-            ),
+            child: isCompleting
+                ? SizedBox(
+                    width: 22.ssp,
+                    height: 22.ssp,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: _white,
+                    ),
+                  )
+                : Text(
+                    'Confirm 18+ & complete delivery',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15.ssp,
+                      fontWeight: FontWeight.w700,
+                      color: _white,
+                      height: 1.2,
+                    ),
+                  ),
           ),
         ),
       ),

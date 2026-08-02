@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/deliver_to_customer_screen.dart';
@@ -65,6 +66,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   static const _initialConfirmOrders = [
     _ConfirmScheduledOrder(
       id: '#YJK-...52',
+      jobId: '',
       route: 'Lulu Express → Seef',
       window: 'Today · 6–8 PM',
       respondIn: 'Respond within 19 min',
@@ -175,11 +177,51 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
-  void _onDoubleConfirm() {
-    setState(() {
-      _scheduledFilter = 2; // On track
-      _segment = 1;
-    });
+  Future<void> _onDoubleConfirm(_ConfirmScheduledOrder order) async {
+    final provider = context.read<OrderProvider>();
+    if (provider.isConfirmingOrder) return;
+
+    final jobId = order.jobId.trim().isNotEmpty ? order.jobId.trim() : order.id;
+    if (jobId.isEmpty || jobId.startsWith('#')) {
+      // Keep local mock behavior when no real job id is available.
+      setState(() {
+        _confirmOrdersList.removeWhere(
+          (item) => item.id == order.id && item.jobId == order.jobId,
+        );
+        _scheduledFilter = 2; // On track
+        _segment = 1;
+      });
+      return;
+    }
+
+    final result = await provider.confirmOrder(jobId);
+    if (!mounted) return;
+
+    if (result != null) {
+      setState(() {
+        _confirmOrdersList.removeWhere(
+          (item) =>
+              item.jobId == jobId ||
+              item.id == order.id ||
+              item.id == result.order.displayOrderNumber,
+        );
+        _scheduledFilter = 2; // On track
+        _segment = 1;
+      });
+      AppHelpers.showSnackBar(
+        context,
+        result.progressLabel.isNotEmpty
+            ? result.progressLabel
+            : 'Order confirmed',
+      );
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      provider.confirmOrderError ?? 'Failed to confirm order',
+      isError: true,
+    );
   }
 
   void _acceptNewOrder(_NewScheduledOrder order) {
@@ -191,6 +233,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         0,
         _ConfirmScheduledOrder(
           id: order.id,
+          jobId: order.jobId,
           route: order.route,
           window: order.window,
           respondIn: order.respondIn,
@@ -601,12 +644,14 @@ class _NewScheduledOrder {
 class _ConfirmScheduledOrder {
   const _ConfirmScheduledOrder({
     required this.id,
+    this.jobId = '',
     required this.route,
     required this.window,
     required this.respondIn,
   });
 
   final String id;
+  final String jobId;
   final String route;
   final String window;
   final String respondIn;
@@ -644,7 +689,7 @@ class _ScheduledOrdersBody extends StatelessWidget {
   final ValueChanged<ScheduledDeliveryOrder> onTrackOrderTap;
   final List<ScheduledCompletedOrderDetail> completedOrders;
   final ValueChanged<ScheduledCompletedOrderDetail> onCompletedOrderTap;
-  final VoidCallback onDoubleConfirm;
+  final ValueChanged<_ConfirmScheduledOrder> onDoubleConfirm;
   final ValueChanged<String> onRelease;
   final ValueChanged<_NewScheduledOrder> onAcceptNew;
   final ValueChanged<_NewScheduledOrder> onRejectNew;
@@ -718,7 +763,7 @@ class _ScheduledOrdersBody extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) => _RequireConfirmCard(
             data: confirmOrders[index],
-            onDoubleConfirm: onDoubleConfirm,
+            onDoubleConfirm: () => onDoubleConfirm(confirmOrders[index]),
             onRelease: () => onRelease(confirmOrders[index].id),
           ),
         );
@@ -980,6 +1025,8 @@ class _RequireConfirmCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isConfirming = context.watch<OrderProvider>().isConfirmingOrder;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -1063,17 +1110,26 @@ class _RequireConfirmCard extends StatelessWidget {
                     color: _OrdersScreenState._green,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
-                      onTap: onDoubleConfirm,
+                      onTap: isConfirming ? null : onDoubleConfirm,
                       borderRadius: BorderRadius.circular(12),
-                      child: const Center(
-                        child: Text(
-                          'Double-confirm',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
+                      child: Center(
+                        child: isConfirming
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Double-confirm',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -1092,7 +1148,7 @@ class _RequireConfirmCard extends StatelessWidget {
                       ),
                     ),
                     child: InkWell(
-                      onTap: onRelease,
+                      onTap: isConfirming ? null : onRelease,
                       borderRadius: BorderRadius.circular(12),
                       child: const Center(
                         child: Text(

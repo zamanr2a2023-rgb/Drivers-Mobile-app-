@@ -59,9 +59,27 @@ class ApiEndpoints {
   static String jobSos(String jobId) => '/drivers/jobs/$jobId/sos';
   static String jobArriveCustomer(String jobId) =>
       '/drivers/jobs/$jobId/arrive-customer';
+  static String jobArrivePickup(String jobId) =>
+      '/drivers/jobs/$jobId/arrive-pickup';
   static String jobComplete(String jobId) => '/drivers/jobs/$jobId/complete';
   static String jobContactAttempts(String jobId) =>
       '/drivers/jobs/$jobId/contact-attempts';
+  static String jobReport(String jobId) => '/drivers/jobs/$jobId/report';
+  static String jobReportWait(String jobId) =>
+      '/drivers/jobs/$jobId/report-wait';
+  static String jobUnableToDeliver(String jobId) =>
+      '/drivers/jobs/$jobId/unable-to-deliver';
+  static String jobConfirmOrder(String jobId) =>
+      '/drivers/jobs/$jobId/confirm-order';
+  static String jobConfirmPickup(String jobId) =>
+      '/drivers/jobs/$jobId/confirm-pickup';
+  static String jobResendCode(String jobId) =>
+      '/drivers/jobs/$jobId/resend-code';
+  static String jobReturnAgeRestricted(String jobId) =>
+      '/drivers/jobs/$jobId/return-age-restricted';
+  static String jobReturn(String jobId) => '/drivers/jobs/$jobId/return';
+  static String jobConfirmReturn(String jobId) =>
+      '/drivers/jobs/$jobId/confirm-return';
   static String jobsHistory({
     String type = 'all',
     bool includeCancelled = true,

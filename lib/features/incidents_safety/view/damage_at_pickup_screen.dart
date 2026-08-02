@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/incidents_safety/view/incident_ui.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 
 /// DR3 · Damage at pickup
 class DamageAtPickupScreen extends StatefulWidget {
@@ -17,12 +20,21 @@ class DamageAtPickupScreen extends StatefulWidget {
 }
 
 class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
+  static const _reportReason = 'DAMAGED_AT_PICKUP';
+
   static const _issues = [
     'Leaking / spilled',
     'Broken seal',
     'Crushed / damaged',
     'Wrong packaging',
   ];
+
+  static const _damageTypeByLabel = {
+    'Leaking / spilled': 'LEAKING_SPILLED',
+    'Broken seal': 'BROKEN_SEAL',
+    'Crushed / damaged': 'CRUSHED_DAMAGED',
+    'Wrong packaging': 'WRONG_PACKAGING',
+  };
 
   final _selected = <String>{};
   bool _declining = true;
@@ -34,8 +46,33 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
     setState(() => _photoBytes = bytes);
   }
 
-  void _submit() {
-    if (_photoBytes == null) {
+  String? _resolveJobId(OrderProvider orders) {
+    final detailId = orders.currentJobDetail?.id.trim();
+    if (detailId != null && detailId.isNotEmpty) return detailId;
+    if (orders.instantActiveJobs.isNotEmpty) {
+      final activeId = orders.instantActiveJobs.first.id.trim();
+      if (activeId.isNotEmpty) return activeId;
+    }
+    return null;
+  }
+
+  String _damageTypeCode() {
+    for (final label in _issues) {
+      if (_selected.contains(label)) {
+        return _damageTypeByLabel[label] ?? 'LEAKING_SPILLED';
+      }
+    }
+    return 'LEAKING_SPILLED';
+  }
+
+  String _noteFromSelection() {
+    if (_selected.isEmpty) return 'Damage reported at pickup';
+    return _selected.join(', ');
+  }
+
+  Future<void> _submit() async {
+    final photoBytes = _photoBytes;
+    if (photoBytes == null) {
       showIncidentSnack(context, 'Please add a photo of the damage');
       return;
     }
@@ -43,12 +80,48 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
       showIncidentSnack(context, 'Please select what’s wrong');
       return;
     }
-    showIncidentSnack(context, 'Damage reported — items declined');
-    Navigator.maybePop(context);
+
+    final orders = context.read<OrderProvider>();
+    if (orders.isReportingJobIssue) return;
+
+    final jobId = _resolveJobId(orders);
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'No active job found',
+        isError: true,
+      );
+      return;
+    }
+
+    final result = await orders.reportJobIssue(
+      jobId: jobId,
+      reason: _reportReason,
+      note: _noteFromSelection(),
+      damageType: _damageTypeCode(),
+      photoBytes: photoBytes,
+      declineItems: _declining,
+    );
+
+    if (!mounted) return;
+
+    if (result != null) {
+      showIncidentSnack(context, result.message);
+      Navigator.maybePop(context);
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      orders.jobReportError ?? 'Failed to report damage',
+      isError: true,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isReporting = context.watch<OrderProvider>().isReportingJobIssue;
+
     return Scaffold(
       backgroundColor: IncidentColors.screenBg,
       body: SafeArea(
@@ -66,7 +139,7 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
                   IncidentPhotoUpload(
                     hasPhoto: _photoBytes != null,
                     photoBytes: _photoBytes,
-                    onTap: _pickPhoto,
+                    onTap: isReporting ? () {} : _pickPhoto,
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -86,15 +159,17 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
                       return IncidentChip(
                         label: issue,
                         selected: selected,
-                        onTap: () {
-                          setState(() {
-                            if (selected) {
-                              _selected.remove(issue);
-                            } else {
-                              _selected.add(issue);
-                            }
-                          });
-                        },
+                        onTap: isReporting
+                            ? () {}
+                            : () {
+                                setState(() {
+                                  if (selected) {
+                                    _selected.remove(issue);
+                                  } else {
+                                    _selected.add(issue);
+                                  }
+                                });
+                              },
                       );
                     }).toList(),
                   ),
@@ -117,8 +192,9 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
                             ),
                             _DeclineToggle(
                               value: _declining,
-                              onChanged: (v) =>
-                                  setState(() => _declining = v),
+                              onChanged: isReporting
+                                  ? (_) {}
+                                  : (v) => setState(() => _declining = v),
                             ),
                           ],
                         ),
@@ -136,8 +212,10 @@ class _DamageAtPickupScreenState extends State<DamageAtPickupScreen> {
                   ),
                   const SizedBox(height: 16),
                   IncidentPrimaryButton(
-                    label: 'Submit & decline items',
-                    onPressed: _declining ? _submit : null,
+                    label: isReporting
+                        ? 'Submitting…'
+                        : 'Submit & decline items',
+                    onPressed: (!_declining || isReporting) ? null : _submit,
                   ),
                 ],
               ),

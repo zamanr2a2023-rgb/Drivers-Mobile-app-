@@ -102,6 +102,48 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
     );
   }
 
+  Future<void> _markUnableToDeliver() async {
+    final orders = context.read<OrderProvider>();
+    if (orders.isMarkingUnableToDeliver) return;
+
+    final jobId = _resolveJobId(orders);
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'No active job found',
+        isError: true,
+      );
+      return;
+    }
+
+    final attemptCount = orders.contactAttempts?.attempts.length ?? 0;
+    final note = attemptCount > 0
+        ? 'Customer not answering after $attemptCount calls'
+        : 'Customer not answering after 2 calls';
+
+    final result = await orders.markUnableToDeliver(
+      jobId: jobId,
+      note: note,
+    );
+    if (!mounted) return;
+
+    if (result != null) {
+      showIncidentSnack(context, result.message);
+      Navigator.pushNamed(
+        context,
+        RouteNames.dispatchCantReachChat,
+        arguments: widget.args,
+      );
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      orders.unableToDeliverError ?? 'Failed to mark unable to deliver',
+      isError: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final orders = context.watch<OrderProvider>();
@@ -110,6 +152,7 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
     final requiredCount = attemptsData?.requiredForUnableToDeliver ?? 2;
     final canMarkUnable = attemptsData?.canMarkUnableToDeliver ?? false;
     final isLogging = orders.isLoggingContactAttempt;
+    final isMarkingUnable = orders.isMarkingUnableToDeliver;
 
     return Scaffold(
       backgroundColor: IncidentColors.screenBg,
@@ -222,15 +265,11 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
                   ),
                   const SizedBox(height: 14),
                   IncidentPrimaryButton(
-                    label: 'Mark as unable to deliver',
-                    onPressed: canMarkUnable
-                        ? () {
-                            Navigator.pushNamed(
-                              context,
-                              RouteNames.dispatchCantReachChat,
-                              arguments: widget.args,
-                            );
-                          }
+                    label: isMarkingUnable
+                        ? 'Reporting…'
+                        : 'Mark as unable to deliver',
+                    onPressed: (canMarkUnable && !isMarkingUnable)
+                        ? _markUnableToDeliver
                         : null,
                   ),
                 ],

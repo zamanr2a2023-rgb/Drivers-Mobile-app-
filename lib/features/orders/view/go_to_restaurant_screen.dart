@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/services/map_service.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
+import 'package:yjeek_driver/features/orders/view/confirm_pickup_screen.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
-import 'package:yjeek_driver/features/orders/view/confirm_pickup_screen.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Screen-local `.h` scale (design height 812). No flutter_screenutil dependency.
@@ -32,7 +35,8 @@ class GoToRestaurantArgs {
   String get distanceLabel => '$distance · $estimatedTime';
 }
 
-/// Local UI-only “Go to restaurant” screen (Order Delivery → Accept).
+/// “Go to restaurant” screen (Order Delivery → Accept).
+/// Arrived calls `POST /drivers/jobs/:jobId/arrive-pickup`.
 class GoToRestaurantScreen extends StatelessWidget {
   const GoToRestaurantScreen({
     super.key,
@@ -55,6 +59,45 @@ class GoToRestaurantScreen extends StatelessWidget {
   static const Color _reportBorder = Color(0xFFF5A623);
   static const Color _navigateBlack = Color(0xFF1A1A1A);
   static const String _restaurantIconAsset = 'assets/images/Frame (1).png';
+
+  Future<void> _arriveAtPickup(BuildContext context) async {
+    final provider = context.read<OrderProvider>();
+    if (provider.isArrivingAtPickup) return;
+
+    final jobId = args.orderId.trim();
+    if (jobId.isEmpty || jobId.startsWith('#')) {
+      Navigator.pushNamed(
+        context,
+        RouteNames.confirmPickup,
+        arguments: ConfirmPickupArgs(
+          orderId: args.orderId,
+          restaurantName: args.restaurantName,
+        ),
+      );
+      return;
+    }
+
+    final success = await provider.arriveAtPickup(jobId);
+    if (!context.mounted) return;
+
+    if (success) {
+      Navigator.pushNamed(
+        context,
+        RouteNames.confirmPickup,
+        arguments: ConfirmPickupArgs(
+          orderId: args.orderId,
+          restaurantName: args.restaurantName,
+        ),
+      );
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      provider.arrivePickupError ?? 'Failed to mark arrived at pickup',
+      isError: true,
+    );
+  }
 
   void _handleBottomNavTap(BuildContext context, int index) {
     switch (index) {
@@ -366,6 +409,8 @@ class GoToRestaurantScreen extends StatelessWidget {
   }
 
   Widget _buildArrivedButton(BuildContext context) {
+    final isArriving = context.watch<OrderProvider>().isArrivingAtPickup;
+
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -373,26 +418,26 @@ class GoToRestaurantScreen extends StatelessWidget {
         color: _headerGreen,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.confirmPickup,
-              arguments: ConfirmPickupArgs(
-                orderId: args.orderId,
-                restaurantName: args.restaurantName,
-              ),
-            );
-          },
+          onTap: isArriving ? null : () => _arriveAtPickup(context),
           borderRadius: BorderRadius.circular(14),
-          child: const Center(
-            child: Text(
-              'Arrived at restaurant',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+          child: Center(
+            child: isArriving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Arrived at restaurant',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),

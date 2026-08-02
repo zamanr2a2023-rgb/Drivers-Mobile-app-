@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/deliver_to_customer_screen.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
@@ -42,7 +45,8 @@ class ConfirmPickupArgs {
   final String restaurantName;
 }
 
-/// Local UI-only “Confirm Pickup” screen (Go to restaurant → Arrived).
+/// Confirm Pickup screen (Go to restaurant → Arrived).
+/// Confirm calls upload + `POST /drivers/jobs/:jobId/confirm-pickup`.
 class ConfirmPickupScreen extends StatefulWidget {
   const ConfirmPickupScreen({
     super.key,
@@ -181,8 +185,46 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
     }
   }
 
-  void _confirmPickup() {
-    Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+  Future<void> _confirmPickup() async {
+    if (!_hasPickupPhoto) return;
+
+    final provider = context.read<OrderProvider>();
+    if (provider.isConfirmingPickup) return;
+
+    final photoBytes = _pickupPhotoBytes;
+    if (photoBytes == null) return;
+
+    final jobId = (provider.currentJobDetail?.id.trim().isNotEmpty == true)
+        ? provider.currentJobDetail!.id.trim()
+        : widget.args.orderId.trim();
+
+    if (jobId.isEmpty || jobId.startsWith('#')) {
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      return;
+    }
+
+    final result = await provider.confirmPickup(
+      jobId: jobId,
+      pickupPhotoBytes: photoBytes,
+    );
+    if (!mounted) return;
+
+    if (result != null) {
+      AppHelpers.showSnackBar(
+        context,
+        result.progressLabel.isNotEmpty
+            ? result.progressLabel
+            : 'Pickup confirmed',
+      );
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      provider.confirmPickupError ?? 'Failed to confirm pickup',
+      isError: true,
+    );
   }
 
   void _closeDeliverToCustomer() {
@@ -586,10 +628,11 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
   }
 
   Widget _buildConfirmButton() {
-    final enabled = _hasPickupPhoto;
+    final isConfirming = context.watch<OrderProvider>().isConfirmingPickup;
+    final enabled = _hasPickupPhoto && !isConfirming;
 
     return Opacity(
-      opacity: enabled ? 1 : 0.45,
+      opacity: enabled || isConfirming ? 1 : 0.45,
       child: SizedBox(
         width: double.infinity,
         height: 49.h,
@@ -597,31 +640,42 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
           color: _confirmGreen,
           borderRadius: BorderRadius.circular(13),
           child: InkWell(
-            onTap: _confirmPickup,
+            onTap: enabled ? _confirmPickup : null,
             borderRadius: BorderRadius.circular(13),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.check_rounded,
-                  color: _white,
-                  size: 20.sp,
-                ),
-                SizedBox(width: 8.w),
-                Flexible(
-                  child: Text(
-                    'Confirm pickup & start delivery',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w700,
-                      color: _white,
-                      height: 1.2,
+            child: Center(
+              child: isConfirming
+                  ? SizedBox(
+                      width: 22.sp,
+                      height: 22.sp,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: _white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_rounded,
+                          color: _white,
+                          size: 20.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Flexible(
+                          child: Text(
+                            'Confirm pickup & start delivery',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w700,
+                              color: _white,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ],
             ),
           ),
         ),
