@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_decline_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_report_model.dart';
@@ -23,6 +24,7 @@ class OrderProvider extends ChangeNotifier {
   bool _isLoadingOffers = false;
   bool _isLoadingInstantBoard = false;
   bool _isLoadingScheduledNewBoard = false;
+  bool _isLoadingScheduledOnTrackBoard = false;
   bool _isLoadingJobDetail = false;
   bool _isArrivingAtCustomer = false;
   bool _isArrivingAtPickup = false;
@@ -32,6 +34,8 @@ class OrderProvider extends ChangeNotifier {
   bool _isReportingWait = false;
   bool _isMarkingUnableToDeliver = false;
   bool _isConfirmingOrder = false;
+  bool _isAcceptingJob = false;
+  bool _isDecliningJob = false;
   bool _isConfirmingPickup = false;
   bool _isResendingSecureCode = false;
   bool _isReturningAgeRestricted = false;
@@ -42,6 +46,7 @@ class OrderProvider extends ChangeNotifier {
   List<JobsBoardJob> _instantActiveJobs = const [];
   List<JobsBoardJob> _instantCompletedJobs = const [];
   List<JobsBoardJob> _scheduledNewJobs = const [];
+  List<JobsBoardJob> _scheduledOnTrackJobs = const [];
   JobsBoardCounts _instantCounts = const JobsBoardCounts();
   JobsBoardCounts _scheduledCounts = const JobsBoardCounts();
   OrderModel? _currentOrder;
@@ -55,6 +60,7 @@ class OrderProvider extends ChangeNotifier {
   String? _offersError;
   String? _instantBoardError;
   String? _scheduledNewBoardError;
+  String? _scheduledOnTrackBoardError;
   String? _jobDetailError;
   String? _arriveCustomerError;
   String? _arrivePickupError;
@@ -64,6 +70,8 @@ class OrderProvider extends ChangeNotifier {
   String? _reportWaitError;
   String? _unableToDeliverError;
   String? _confirmOrderError;
+  String? _acceptJobError;
+  String? _declineJobError;
   String? _confirmPickupError;
   String? _resendSecureCodeError;
   JobResendCodeResult? _lastResendSecureCodeResult;
@@ -87,6 +95,7 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoadingOffers => _isLoadingOffers;
   bool get isLoadingInstantBoard => _isLoadingInstantBoard;
   bool get isLoadingScheduledNewBoard => _isLoadingScheduledNewBoard;
+  bool get isLoadingScheduledOnTrackBoard => _isLoadingScheduledOnTrackBoard;
   bool get isLoadingJobDetail => _isLoadingJobDetail;
   bool get isArrivingAtCustomer => _isArrivingAtCustomer;
   bool get isArrivingAtPickup => _isArrivingAtPickup;
@@ -96,6 +105,8 @@ class OrderProvider extends ChangeNotifier {
   bool get isReportingWait => _isReportingWait;
   bool get isMarkingUnableToDeliver => _isMarkingUnableToDeliver;
   bool get isConfirmingOrder => _isConfirmingOrder;
+  bool get isAcceptingJob => _isAcceptingJob;
+  bool get isDecliningJob => _isDecliningJob;
   bool get isConfirmingPickup => _isConfirmingPickup;
   bool get isResendingSecureCode => _isResendingSecureCode;
   bool get isReturningAgeRestricted => _isReturningAgeRestricted;
@@ -109,9 +120,12 @@ class OrderProvider extends ChangeNotifier {
   List<JobsBoardJob> get instantActiveJobs => _instantActiveJobs;
   List<JobsBoardJob> get instantCompletedJobs => _instantCompletedJobs;
   List<JobsBoardJob> get scheduledNewJobs => _scheduledNewJobs;
+  List<JobsBoardJob> get scheduledOnTrackJobs => _scheduledOnTrackJobs;
   JobsBoardCounts get instantCounts => _instantCounts;
   JobsBoardCounts get scheduledCounts => _scheduledCounts;
   int get scheduledNewCount => _scheduledNewJobs.length;
+  int get scheduledOnTrackCount => _scheduledOnTrackJobs.length;
+  int get offersCount => _offers.length;
   OrderModel? get currentOrder => _currentOrder;
   OrderModel? get newRequest => _newRequest;
   JobOfferModel? get currentOffer => _currentOffer;
@@ -124,6 +138,7 @@ class OrderProvider extends ChangeNotifier {
   String? get offersError => _offersError;
   String? get instantBoardError => _instantBoardError;
   String? get scheduledNewBoardError => _scheduledNewBoardError;
+  String? get scheduledOnTrackBoardError => _scheduledOnTrackBoardError;
   String? get jobDetailError => _jobDetailError;
   String? get arriveCustomerError => _arriveCustomerError;
   String? get arrivePickupError => _arrivePickupError;
@@ -133,6 +148,8 @@ class OrderProvider extends ChangeNotifier {
   String? get reportWaitError => _reportWaitError;
   String? get unableToDeliverError => _unableToDeliverError;
   String? get confirmOrderError => _confirmOrderError;
+  String? get acceptJobError => _acceptJobError;
+  String? get declineJobError => _declineJobError;
   String? get confirmPickupError => _confirmPickupError;
   String? get resendSecureCodeError => _resendSecureCodeError;
   JobResendCodeResult? get lastResendSecureCodeResult =>
@@ -250,6 +267,8 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  /// `GET /drivers/jobs/board?type=scheduled&section=new&limit=20`
+  /// Refreshes scheduled filter counts (and new-section jobs when present).
   Future<void> loadScheduledNewJobsBoard() async {
     _isLoadingScheduledNewBoard = true;
     _scheduledNewBoardError = null;
@@ -259,19 +278,62 @@ class OrderProvider extends ChangeNotifier {
       final data = await _orderService.getJobsBoard(
         type: 'scheduled',
         section: 'new',
+        limit: 20,
       );
       _scheduledNewJobs = data.jobs;
       _scheduledCounts = data.counts;
     } on ApiException catch (e) {
       _scheduledNewBoardError = e.message;
       _scheduledNewJobs = const [];
-      _scheduledCounts = const JobsBoardCounts();
     } catch (_) {
       _scheduledNewBoardError = 'Failed to load scheduled orders';
       _scheduledNewJobs = const [];
-      _scheduledCounts = const JobsBoardCounts();
     } finally {
       _isLoadingScheduledNewBoard = false;
+      notifyListeners();
+    }
+  }
+
+  /// `GET /drivers/jobs/board?type=scheduled&section=onTrack&limit=20`
+  Future<void> loadScheduledOnTrackJobsBoard() async {
+    _isLoadingScheduledOnTrackBoard = true;
+    _scheduledOnTrackBoardError = null;
+    notifyListeners();
+
+    try {
+      var data = await _orderService.getJobsBoard(
+        type: 'scheduled',
+        section: 'onTrack',
+        limit: 20,
+      );
+      // If camelCase returns counts but no jobs, retry snake_case section.
+      if (data.jobs.isEmpty && data.counts.onTrack > 0) {
+        data = await _orderService.getJobsBoard(
+          type: 'scheduled',
+          section: 'on_track',
+          limit: 20,
+        );
+      }
+      _scheduledOnTrackJobs = data.jobs;
+      _scheduledCounts = data.counts;
+    } on ApiException catch (_) {
+      try {
+        final data = await _orderService.getJobsBoard(
+          type: 'scheduled',
+          section: 'on_track',
+          limit: 20,
+        );
+        _scheduledOnTrackJobs = data.jobs;
+        _scheduledCounts = data.counts;
+      } on ApiException catch (e) {
+        _scheduledOnTrackBoardError = e.message;
+        _scheduledOnTrackJobs = const [];
+      }
+    } catch (_) {
+      _scheduledOnTrackBoardError = 'Failed to load on-track orders';
+      _scheduledOnTrackJobs = const [];
+    } finally {
+      _isLoadingScheduledOnTrackBoard = false;
       notifyListeners();
     }
   }
@@ -282,6 +344,36 @@ class OrderProvider extends ChangeNotifier {
     _scheduledNewJobs = _scheduledNewJobs
         .where((job) => job.id != id && job.displayOrderId != id)
         .toList(growable: false);
+    notifyListeners();
+  }
+
+  void removeOffer(String jobId) {
+    final id = jobId.trim();
+    if (id.isEmpty) return;
+    _offers = _offers
+        .where(
+          (offer) =>
+              offer.id != id &&
+              offer.orderNumber != id,
+        )
+        .toList(growable: false);
+    if (_currentOffer?.id == id || _currentOffer?.orderNumber == id) {
+      _currentOffer = _offers.isNotEmpty ? _offers.first : null;
+      _newRequest = _currentOffer == null
+          ? null
+          : OrderModel(
+              id: _currentOffer!.id,
+              pickupAddress: _currentOffer!.pickupSubtitle,
+              dropoffAddress: _currentOffer!.dropoffSubtitle,
+              customerName: _currentOffer!.customerName,
+              vendorName: _currentOffer!.vendorName,
+              status: _currentOffer!.status,
+              price: _currentOffer!.driverEarnings,
+              distance: _currentOffer!.distanceKm,
+              createdAt: DateTime.now(),
+              paymentStatus: _currentOffer!.paymentMethod,
+            );
+    }
     notifyListeners();
   }
 
@@ -332,6 +424,8 @@ class OrderProvider extends ChangeNotifier {
     _reportWaitError = null;
     _unableToDeliverError = null;
     _confirmOrderError = null;
+    _acceptJobError = null;
+    _declineJobError = null;
     _confirmPickupError = null;
     _resendSecureCodeError = null;
     _lastResendSecureCodeResult = null;
@@ -350,6 +444,8 @@ class OrderProvider extends ChangeNotifier {
     _isReportingWait = false;
     _isMarkingUnableToDeliver = false;
     _isConfirmingOrder = false;
+    _isAcceptingJob = false;
+    _isDecliningJob = false;
     _isConfirmingPickup = false;
     _isResendingSecureCode = false;
     _isReturningAgeRestricted = false;
@@ -797,6 +893,63 @@ class OrderProvider extends ChangeNotifier {
       return null;
     } finally {
       _isConfirmingOrder = false;
+      notifyListeners();
+    }
+  }
+
+  /// `POST /drivers/jobs/:jobId/accept`
+  Future<JobDetailModel?> acceptJob(String jobId) async {
+    _isAcceptingJob = true;
+    _acceptJobError = null;
+    notifyListeners();
+
+    try {
+      final result = await _orderService.acceptJob(jobId);
+      _currentJobDetail = result;
+      _contactAttempts = result.contactAttempts;
+      removeOffer(jobId);
+      removeScheduledNewJob(jobId);
+      _deliveryStep = 0;
+      return result;
+    } on ApiException catch (e) {
+      _acceptJobError = e.message;
+      return null;
+    } catch (_) {
+      _acceptJobError = 'Failed to accept job';
+      return null;
+    } finally {
+      _isAcceptingJob = false;
+      notifyListeners();
+    }
+  }
+
+  /// `POST /drivers/jobs/:jobId/decline`
+  Future<JobDeclineResult?> declineJob({
+    required String jobId,
+    required String reason,
+    String note = '',
+  }) async {
+    _isDecliningJob = true;
+    _declineJobError = null;
+    notifyListeners();
+
+    try {
+      final result = await _orderService.declineJob(
+        jobId: jobId,
+        reason: reason,
+        note: note,
+      );
+      removeOffer(jobId);
+      removeScheduledNewJob(jobId);
+      return result;
+    } on ApiException catch (e) {
+      _declineJobError = e.message;
+      return null;
+    } catch (_) {
+      _declineJobError = 'Failed to decline job';
+      return null;
+    } finally {
+      _isDecliningJob = false;
       notifyListeners();
     }
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 
 /// Local UI-only screen for rejecting a New scheduled order.
 /// Shown inside Orders tab so BottomNavigation stays on Orders.
@@ -70,6 +72,7 @@ class _RejectScheduledOrderScreenState
 
   void _submit() {
     if (!_canSubmit) return;
+    if (context.read<OrderProvider>().isDecliningJob) return;
     widget.onSubmitDecline(
       _reasons[_selectedReason!].title,
       _noteController.text.trim(),
@@ -79,6 +82,8 @@ class _RejectScheduledOrderScreenState
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final isDeclining = context.watch<OrderProvider>().isDecliningJob;
+    final canSubmit = _canSubmit && !isDeclining;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -110,7 +115,9 @@ class _RejectScheduledOrderScreenState
                       title: _reasons[i].title,
                       subtitle: _reasons[i].subtitle,
                       selected: _selectedReason == i,
-                      onTap: () => setState(() => _selectedReason = i),
+                      onTap: isDeclining
+                          ? () {}
+                          : () => setState(() => _selectedReason = i),
                     ),
                     if (i < _reasons.length - 1) const SizedBox(height: 10),
                   ],
@@ -120,7 +127,7 @@ class _RejectScheduledOrderScreenState
                   _buildWarningCard(),
                   const SizedBox(height: 20),
                   Opacity(
-                    opacity: _canSubmit ? 1 : 0.45,
+                    opacity: canSubmit || isDeclining ? 1 : 0.45,
                     child: SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -128,17 +135,26 @@ class _RejectScheduledOrderScreenState
                         color: _submitBlack,
                         borderRadius: BorderRadius.circular(28),
                         child: InkWell(
-                          onTap: _canSubmit ? _submit : null,
+                          onTap: canSubmit ? _submit : null,
                           borderRadius: BorderRadius.circular(28),
-                          child: const Center(
-                            child: Text(
-                              'Submit & decline',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
+                          child: Center(
+                            child: isDeclining
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Submit & decline',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -155,7 +171,7 @@ class _RejectScheduledOrderScreenState
                         side: const BorderSide(color: _border),
                       ),
                       child: InkWell(
-                        onTap: widget.onKeepOrder,
+                        onTap: isDeclining ? null : widget.onKeepOrder,
                         borderRadius: BorderRadius.circular(28),
                         child: const Center(
                           child: Text(

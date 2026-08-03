@@ -14,6 +14,7 @@ class JobDetailModel {
     this.deliveryPhotoUrl,
     this.cashCollectedAmount,
     this.contactAttempts,
+    this.confirmExpiresInSec,
   });
 
   final String id;
@@ -27,8 +28,15 @@ class JobDetailModel {
   final String? deliveryPhotoUrl;
   final double? cashCollectedAmount;
   final ContactAttemptsResult? contactAttempts;
+  final int? confirmExpiresInSec;
 
   bool get requiresCashCollection => order.requiresCashCollection;
+
+  /// True when the driver must still double-confirm this accepted job.
+  bool get requiresConfirmation {
+    final sec = confirmExpiresInSec;
+    return sec != null && sec > 0;
+  }
 
   String get distanceEtaLabel {
     final parts = <String>[];
@@ -73,6 +81,9 @@ class JobDetailModel {
               Map<String, dynamic>.from(contactRaw),
             )
           : null,
+      confirmExpiresInSec: json['confirmExpiresInSec'] == null
+          ? null
+          : _asInt(json['confirmExpiresInSec']),
     );
   }
 

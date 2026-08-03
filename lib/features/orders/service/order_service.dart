@@ -4,6 +4,7 @@ import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_decline_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_report_model.dart';
@@ -252,6 +253,70 @@ class OrderService {
 
     try {
       return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Accepts a job offer.
+  Future<JobDetailModel> acceptJob(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobAccept(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to accept job'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Declines a job offer.
+  Future<JobDeclineResult> declineJob({
+    required String jobId,
+    required String reason,
+    String note = '',
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final reasonCode = reason.trim();
+    if (reasonCode.isEmpty) {
+      throw ApiException('Decline reason is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobDecline(id),
+      body: {
+        'reason': reasonCode,
+        'note': note.trim(),
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to decline job'),
+      );
+    }
+
+    try {
+      return JobDeclineResult.fromJson(response);
     } on FormatException {
       throw ApiException('Invalid response from server');
     }
