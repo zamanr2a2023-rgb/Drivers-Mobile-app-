@@ -36,6 +36,9 @@ class JobCompleteSummary {
     required this.paymentMethod,
     this.cashCollected,
     this.ageVerified = false,
+    this.deliveryType,
+    this.verification,
+    this.secureProof,
   });
 
   final double earningsAdded;
@@ -47,6 +50,34 @@ class JobCompleteSummary {
   final String paymentMethod;
   final double? cashCollected;
   final bool ageVerified;
+  final String? deliveryType;
+  final String? verification;
+  final String? secureProof;
+
+  String get earningsAddedLabel => earningsAdded.toStringAsFixed(3);
+
+  String get tipAmountLabel => tipAmount.toStringAsFixed(3);
+
+  String get distanceLabel {
+    final value = distanceKm;
+    final text = value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return '$text km';
+  }
+
+  String get durationLabel {
+    // Some payloads send seconds under durationMin; keep display readable.
+    final minutes =
+        durationMin >= 1000 ? (durationMin / 60).round() : durationMin;
+    return '$minutes min';
+  }
+
+  String get deliveryTypeLabel {
+    final raw = deliveryType?.trim();
+    if (raw == null || raw.isEmpty) return '—';
+    return raw.replaceAll('_', ' · ').replaceAll('-', ' · ');
+  }
 
   factory JobCompleteSummary.fromJson(Map<String, dynamic> json) {
     return JobCompleteSummary(
@@ -57,16 +88,25 @@ class JobCompleteSummary {
       distanceKm: _asDouble(json['distanceKm']),
       durationMin: _asInt(json['durationMin']),
       paymentMethod: json['paymentMethod']?.toString() ?? '',
-      cashCollected: json['cashCollected'] == null
-          ? null
-          : _asDouble(json['cashCollected']),
+      cashCollected: _asNullableDouble(json['cashCollected']),
       ageVerified: json['ageVerified'] == true,
+      deliveryType: json['deliveryType']?.toString(),
+      verification: json['verification']?.toString(),
+      secureProof: json['secureProof']?.toString(),
     );
   }
 
   static double _asDouble(dynamic value) {
     if (value is num) return value.toDouble();
+    if (value is bool) return value ? 1 : 0;
     return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static double? _asNullableDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value ? 1 : 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   static int _asInt(dynamic value) {

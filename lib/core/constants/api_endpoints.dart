@@ -19,10 +19,16 @@ class ApiEndpoints {
 
   // Earnings
   static const String earnings = '/drivers/earnings';
-  static const String earningsDaily = '/drivers/earnings?period=daily';
-  static const String earningsWeekly = '/drivers/earnings?period=weekly';
-  static const String earningsMonthly = '/drivers/earnings?period=monthly';
   static const String earningsTransactions = '/drivers/earnings/transactions';
+
+  static String earningsByPeriod(String period) => _query(
+        '/drivers/earnings',
+        {'period': period},
+      );
+
+  static String get earningsDaily => earningsByPeriod('daily');
+  static String get earningsWeekly => earningsByPeriod('weekly');
+  static String get earningsMonthly => earningsByPeriod('monthly');
 
   // Profile / Account
   static const String driverProfile = '/drivers/profile';
@@ -36,11 +42,13 @@ class ApiEndpoints {
   static const String accountDocuments = '/drivers/account/documents';
 
   static String accountDocument(String type) =>
-      '/drivers/account/documents/$type';
+      '/drivers/account/documents/${_seg(type)}';
 
   /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos
-  static String uploads({required String category}) =>
-      '/uploads?category=$category';
+  static String uploads({required String category}) => _query(
+        '/uploads',
+        {'category': category},
+      );
 
   // Performance
   static const String performance = '/drivers/performance';
@@ -50,31 +58,70 @@ class ApiEndpoints {
   static const String notificationsReadAll = '/drivers/notifications/read-all';
 
   static String notificationRead(String notificationId) =>
-      '/drivers/notifications/$notificationId/read';
+      '/drivers/notifications/${_seg(notificationId)}/read';
 
   // Jobs
   static const String jobOffers = '/drivers/jobs/offers';
   static const String jobActive = '/drivers/jobs/active';
-  static String jobById(String jobId) => '/drivers/jobs/$jobId';
-  static String jobSos(String jobId) => '/drivers/jobs/$jobId/sos';
+
+  static String jobById(String jobId) => _job(jobId);
+  static String jobAccept(String jobId) => _job(jobId, 'accept');
+  static String jobDecline(String jobId) => _job(jobId, 'decline');
+  static String jobRelease(String jobId) => _job(jobId, 'release');
+  static String jobSos(String jobId) => _job(jobId, 'sos');
   static String jobArriveCustomer(String jobId) =>
-      '/drivers/jobs/$jobId/arrive-customer';
-  static String jobComplete(String jobId) => '/drivers/jobs/$jobId/complete';
+      _job(jobId, 'arrive-customer');
+  static String jobArrivePickup(String jobId) => _job(jobId, 'arrive-pickup');
+  static String jobComplete(String jobId) => _job(jobId, 'complete');
   static String jobContactAttempts(String jobId) =>
-      '/drivers/jobs/$jobId/contact-attempts';
+      _job(jobId, 'contact-attempts');
+  static String jobReport(String jobId) => _job(jobId, 'report');
+  static String jobReportWait(String jobId) => _job(jobId, 'report-wait');
+  static String jobUnableToDeliver(String jobId) =>
+      _job(jobId, 'unable-to-deliver');
+  static String jobConfirmOrder(String jobId) => _job(jobId, 'confirm-order');
+  static String jobConfirmPickup(String jobId) => _job(jobId, 'confirm-pickup');
+  static String jobResendCode(String jobId) => _job(jobId, 'resend-code');
+  static String jobReturnAgeRestricted(String jobId) =>
+      _job(jobId, 'return-age-restricted');
+  static String jobReturn(String jobId) => _job(jobId, 'return');
+  static String jobConfirmReturn(String jobId) =>
+      _job(jobId, 'confirm-return');
+
   static String jobsHistory({
     String type = 'all',
     bool includeCancelled = true,
     int limit = 20,
   }) =>
-      '/drivers/jobs/history?type=$type&includeCancelled=$includeCancelled&limit=$limit';
+      _query('/drivers/jobs/history', {
+        'type': type,
+        'includeCancelled': '$includeCancelled',
+        'limit': '$limit',
+      });
 
   /// Instant: section=active|completed.
-  /// Scheduled: section=new|require_confirmation|on_track|completed.
+  /// Scheduled: section=new|requireConfirmation|onTrack|completed.
   static String jobsBoard({
     required String type,
     required String section,
     int limit = 20,
   }) =>
-      '/drivers/jobs/board?type=$type&section=$section&limit=$limit';
+      _query('/drivers/jobs/board', {
+        'type': type,
+        'section': section,
+        'limit': '$limit',
+      });
+
+  /// `/drivers/jobs/{jobId}` or `/drivers/jobs/{jobId}/{action}`
+  static String _job(String jobId, [String? action]) {
+    final id = _seg(jobId);
+    if (action == null || action.isEmpty) return '/drivers/jobs/$id';
+    return '/drivers/jobs/$id/$action';
+  }
+
+  static String _seg(String value) => Uri.encodeComponent(value.trim());
+
+  static String _query(String path, Map<String, String> params) {
+    return Uri(path: path, queryParameters: params).toString();
+  }
 }

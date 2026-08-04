@@ -4,8 +4,14 @@ import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_decline_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_report_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_report_wait_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_resend_code_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_confirm_return_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_return_age_restricted_model.dart';
 import 'package:yjeek_driver/features/orders/model/order_model.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
@@ -160,22 +166,18 @@ class OrderService {
     }
   }
 
-  /// Uploads a delivery proof photo and returns its public URL.
-  Future<String> uploadDeliveryProof({
-    required Uint8List bytes,
-    String filename = 'delivery-proof.jpg',
-  }) async {
-    final response = await _api.postMultipart(
-      ApiEndpoints.uploads(category: 'delivery-proofs'),
-      fieldName: 'file',
-      bytes: bytes,
-      filename: filename,
-      contentType: 'image/jpeg',
-    );
+  /// Marks the driver as arrived at the pickup / vendor.
+  Future<JobDetailModel> arriveAtPickup(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobArrivePickup(id));
 
     if (response['success'] != true) {
       throw ApiException(
-        _failureMessage(response, 'Failed to upload delivery photo'),
+        _failureMessage(response, 'Failed to mark arrived at pickup'),
       );
     }
 
@@ -184,11 +186,206 @@ class OrderService {
       throw ApiException('Invalid response from server');
     }
 
-    final url = data['url']?.toString().trim() ?? '';
-    if (url.isEmpty) {
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
       throw ApiException('Invalid response from server');
     }
-    return url;
+  }
+
+  /// Confirms pickup with proof photo URL.
+  Future<JobDetailModel> confirmPickup({
+    required String jobId,
+    required String pickupPhotoUrl,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final photoUrl = pickupPhotoUrl.trim();
+    if (photoUrl.isEmpty) {
+      throw ApiException('Pickup photo is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobConfirmPickup(id),
+      body: {'pickupPhotoUrl': photoUrl},
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to confirm pickup'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Confirms a scheduled job (double-confirm).
+  Future<JobDetailModel> confirmOrder(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobConfirmOrder(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to confirm order'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Accepts a job offer.
+  Future<JobDetailModel> acceptJob(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobAccept(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to accept job'),
+      );
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    try {
+      return JobDetailModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Declines a job offer.
+  Future<JobDeclineResult> declineJob({
+    required String jobId,
+    required String reason,
+    String note = '',
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final reasonCode = reason.trim();
+    if (reasonCode.isEmpty) {
+      throw ApiException('Decline reason is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobDecline(id),
+      body: {
+        'reason': reasonCode,
+        'note': note.trim(),
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to decline job'),
+      );
+    }
+
+    try {
+      return JobDeclineResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Uploads a delivery proof photo and returns its public URL.
+  Future<String> uploadDeliveryProof({
+    required Uint8List bytes,
+    String filename = 'delivery-proof.jpg',
+  }) async {
+    final uploaded = await _uploadFile(
+      category: 'delivery-proofs',
+      bytes: bytes,
+      filename: filename,
+      failureMessage: 'Failed to upload delivery photo',
+    );
+    return uploaded.url;
+  }
+
+  /// Uploads age-verification evidence and returns upload id (+ url).
+  Future<({String id, String url})> uploadAgeVerificationProof({
+    required Uint8List bytes,
+    String filename = 'age-verification.jpg',
+  }) async {
+    return _uploadFile(
+      category: 'documents',
+      bytes: bytes,
+      filename: filename,
+      failureMessage: 'Failed to upload age verification photo',
+    );
+  }
+
+  Future<({String id, String url})> _uploadFile({
+    required String category,
+    required Uint8List bytes,
+    required String filename,
+    required String failureMessage,
+  }) async {
+    final response = await _api.postMultipart(
+      ApiEndpoints.uploads(category: category),
+      fieldName: 'file',
+      bytes: bytes,
+      filename: filename,
+      contentType: 'image/jpeg',
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(_failureMessage(response, failureMessage));
+    }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    final map = Map<String, dynamic>.from(data);
+    final url = map['url']?.toString().trim() ?? '';
+    final id = map['id']?.toString().trim().isNotEmpty == true
+        ? map['id'].toString().trim()
+        : map['uploadId']?.toString().trim().isNotEmpty == true
+            ? map['uploadId'].toString().trim()
+            : map['secureUploadId']?.toString().trim().isNotEmpty == true
+                ? map['secureUploadId'].toString().trim()
+                : url;
+
+    if (id.isEmpty || url.isEmpty) {
+      throw ApiException('Invalid response from server');
+    }
+    return (id: id, url: url);
   }
 
   /// Completes the job with proof of delivery.
@@ -228,6 +425,56 @@ class OrderService {
     }
   }
 
+  /// Completes an age-restricted delivery (`/complete` + ageVerification).
+  Future<JobCompleteResult> completeAgeRestrictedJob({
+    required String jobId,
+    required String deliveryPhotoUrl,
+    required String secureUploadId,
+    bool nameMatches = true,
+    bool photoMatches = true,
+    bool verified18OrOlder = true,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final photoUrl = deliveryPhotoUrl.trim();
+    if (photoUrl.isEmpty) {
+      throw ApiException('Delivery photo is required');
+    }
+
+    final uploadId = secureUploadId.trim();
+    if (uploadId.isEmpty) {
+      throw ApiException('Age verification upload is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobComplete(id),
+      body: {
+        'deliveryPhotoUrl': photoUrl,
+        'ageVerification': {
+          'secureUploadId': uploadId,
+          'nameMatches': nameMatches,
+          'photoMatches': photoMatches,
+          'verified18OrOlder': verified18OrOlder,
+        },
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to complete age-restricted delivery'),
+      );
+    }
+
+    try {
+      return JobCompleteResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
   /// Logs a contact attempt (e.g. CALL) for unable-to-deliver rules.
   Future<ContactAttemptsResult> logContactAttempt({
     required String jobId,
@@ -251,6 +498,109 @@ class OrderService {
 
     try {
       return ContactAttemptsResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Reports a job issue to Yjeek Ops (e.g. VENDOR_NOT_READY, DAMAGED_AT_PICKUP).
+  Future<JobReportResult> reportJobIssue({
+    required String jobId,
+    required String reason,
+    required String note,
+    String? damageType,
+    String? photoUrl,
+    bool? declineItems,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final reasonCode = reason.trim().isEmpty ? 'VENDOR_NOT_READY' : reason.trim();
+    final noteText = note.trim().isEmpty ? 'Issue reported by driver' : note.trim();
+
+    final body = <String, dynamic>{
+      'reason': reasonCode,
+      'note': noteText,
+    };
+    if (damageType != null && damageType.trim().isNotEmpty) {
+      body['damageType'] = damageType.trim();
+    }
+    if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+      body['photoUrl'] = photoUrl.trim();
+    }
+    if (declineItems != null) {
+      body['declineItems'] = declineItems;
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobReport(id),
+      body: body,
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to report issue'),
+      );
+    }
+
+    try {
+      return JobReportResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Reports wait at vendor so RPI excludes the wait time.
+  Future<JobReportWaitResult> reportWaitAtVendor(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final response = await _api.post(ApiEndpoints.jobReportWait(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to report wait'),
+      );
+    }
+
+    try {
+      return JobReportWaitResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Marks the job as unable to deliver after required contact attempts.
+  Future<JobReportResult> markUnableToDeliver({
+    required String jobId,
+    required String note,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final noteText = note.trim().isEmpty
+        ? 'Customer not answering after 2 calls'
+        : note.trim();
+
+    final response = await _api.post(
+      ApiEndpoints.jobUnableToDeliver(id),
+      body: {'note': noteText},
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to mark unable to deliver'),
+      );
+    }
+
+    try {
+      return JobReportResult.fromJson(response);
     } on FormatException {
       throw ApiException('Invalid response from server');
     }
@@ -328,6 +678,154 @@ class OrderService {
         paymentStatus: 'Refunded',
       ),
     ];
+  }
+
+  /// Starts an age-restricted return to vendor.
+  Future<JobReturnAgeRestrictedResult> returnAgeRestricted({
+    required String jobId,
+    required String reason,
+    required String returnPhotoUrl,
+    required String note,
+  }) {
+    final id = jobId.trim();
+    return _startJobReturn(
+      endpoint: ApiEndpoints.jobReturnAgeRestricted(id),
+      jobId: id,
+      reason: reason,
+      returnPhotoUrl: returnPhotoUrl,
+      note: note,
+      emptyNoteFallback: 'Customer could not provide valid CPR',
+      failureMessage: 'Failed to start age-restricted return',
+    );
+  }
+
+  /// Starts a secure-order return (can't verify OTP / recipient).
+  Future<JobReturnAgeRestrictedResult> returnSecureOrder({
+    required String jobId,
+    required String reason,
+    required String returnPhotoUrl,
+    required String note,
+  }) {
+    final id = jobId.trim();
+    return _startJobReturn(
+      endpoint: ApiEndpoints.jobReturn(id),
+      jobId: id,
+      reason: reason,
+      returnPhotoUrl: returnPhotoUrl,
+      note: note,
+      emptyNoteFallback: 'Recipient could not provide the one-time code',
+      failureMessage: 'Failed to start secure order return',
+    );
+  }
+
+  /// Confirms sealed-order handover back to the vendor.
+  Future<JobConfirmReturnResult> confirmReturnHandover({
+    required String jobId,
+    required String vendorHandoverPhotoUrl,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final photoUrl = vendorHandoverPhotoUrl.trim();
+    if (photoUrl.isEmpty) {
+      throw ApiException('Vendor handover photo is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobConfirmReturn(id),
+      body: {'vendorHandoverPhotoUrl': photoUrl},
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to confirm return handover'),
+      );
+    }
+
+    try {
+      return JobConfirmReturnResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  Future<JobReturnAgeRestrictedResult> _startJobReturn({
+    required String endpoint,
+    required String jobId,
+    required String reason,
+    required String returnPhotoUrl,
+    required String note,
+    required String emptyNoteFallback,
+    required String failureMessage,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final reasonCode = reason.trim();
+    if (reasonCode.isEmpty) {
+      throw ApiException('Return reason is required');
+    }
+
+    final photoUrl = returnPhotoUrl.trim();
+    if (photoUrl.isEmpty) {
+      throw ApiException('Return photo is required');
+    }
+
+    final response = await _api.post(
+      endpoint,
+      body: {
+        'reason': reasonCode,
+        'returnPhotoUrl': photoUrl,
+        'note': note.trim().isEmpty ? emptyNoteFallback : note.trim(),
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(_failureMessage(response, failureMessage));
+    }
+
+    try {
+      return JobReturnAgeRestrictedResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  /// Resends the secure one-time delivery code to the customer.
+  Future<JobResendCodeResult> resendSecureCode({
+    required String jobId,
+    required String code,
+  }) async {
+    final id = jobId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Job id is required');
+    }
+
+    final secureCode = code.trim();
+    if (secureCode.isEmpty) {
+      throw ApiException('Code is required');
+    }
+
+    final response = await _api.post(
+      ApiEndpoints.jobResendCode(id),
+      body: {'code': secureCode},
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to resend code'),
+      );
+    }
+
+    try {
+      return JobResendCodeResult.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
   }
 
   Future<OrderModel?> getOrderById(String id) async {

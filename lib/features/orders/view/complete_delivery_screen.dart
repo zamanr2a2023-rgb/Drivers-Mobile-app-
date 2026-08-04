@@ -158,7 +158,11 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
 
     if (result != null) {
       AppHelpers.showSnackBar(context, result.message);
-      Navigator.pushNamed(context, RouteNames.deliveryCompleted);
+      Navigator.pushNamed(
+        context,
+        RouteNames.deliveryCompleted,
+        arguments: result,
+      );
       return;
     }
 

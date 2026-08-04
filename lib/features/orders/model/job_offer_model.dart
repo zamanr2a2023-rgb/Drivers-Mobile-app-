@@ -76,23 +76,34 @@ class JobOfferModel {
   }
 
   factory JobOfferModel.fromJson(Map<String, dynamic> json) {
-    final vendor = _asMap(json['vendor']);
-    final pickup = _asMap(json['pickup'] ?? json['pickupLocation']);
-    final dropoff = _asMap(json['dropoff'] ?? json['dropoffLocation']);
-    final customer = _asMap(json['customer']);
+    final order = _asMap(json['order']) ?? const <String, dynamic>{};
+    final vendor = _asMap(order['vendor'] ?? json['vendor']);
+    final vendorLocation =
+        _asMap(order['vendorLocation'] ?? json['vendorLocation']);
+    final pickup = _asMap(
+      json['pickup'] ?? json['pickupLocation'] ?? order['vendorLocation'],
+    );
+    final dropoff = _asMap(
+      order['address'] ?? json['dropoff'] ?? json['dropoffLocation'],
+    );
+    final customer = _asMap(order['customer'] ?? json['customer']);
 
     final vendorName = _firstNonEmpty([
       json['vendorName'],
       vendor?['name'],
       vendor?['businessName'],
+      vendorLocation?['name'],
     ]);
 
     final pickupArea = _firstNonEmpty([
       json['pickupArea'],
+      vendor?['area'],
+      vendorLocation?['area'],
       pickup?['area'],
       pickup?['zone'],
       pickup?['district'],
       pickup?['address'],
+      vendor?['city'],
       json['pickupAddress'],
     ]);
 
@@ -101,7 +112,9 @@ class JobOfferModel {
       dropoff?['area'],
       dropoff?['zone'],
       dropoff?['district'],
+      dropoff?['line1'],
       dropoff?['address'],
+      dropoff?['city'],
       json['dropoffAddress'],
     ]);
 
@@ -111,38 +124,56 @@ class JobOfferModel {
       customer?['fullName'],
     ]);
 
+    final categoryLabels = order['categoryLabels'];
+    final categoryFromLabels = categoryLabels is List && categoryLabels.isNotEmpty
+        ? categoryLabels.first?.toString() ?? ''
+        : '';
+
     return JobOfferModel(
       id: json['id']?.toString() ?? json['jobId']?.toString() ?? '',
       status: json['status']?.toString() ?? 'OFFERED',
-      orderNumber: json['orderNumber']?.toString() ??
-          json['orderId']?.toString() ??
-          '',
+      orderNumber: _firstNonEmpty([
+        order['orderNumber'],
+        json['orderNumber'],
+        order['id'],
+        json['orderId'],
+      ]),
       vendorName: vendorName.isEmpty ? 'Vendor' : vendorName,
       pickupArea: pickupArea,
       dropoffArea: dropoffArea,
       customerName: customerName.isEmpty ? 'Customer' : customerName,
-      paymentMethod: json['paymentMethod']?.toString() ??
-          json['paymentType']?.toString() ??
-          '',
+      paymentMethod: _firstNonEmpty([
+        order['paymentMethod'],
+        json['paymentMethod'],
+        json['paymentType'],
+      ]),
       driverEarnings: _asDouble(
         json['driverEarnings'] ?? json['earnings'] ?? json['payout'],
       ),
       totalAmount: _asDouble(
-        json['totalAmount'] ?? json['cashToCollect'] ?? json['orderTotal'],
+        order['totalAmount'] ??
+            json['totalAmount'] ??
+            json['cashToCollect'] ??
+            json['orderTotal'],
       ),
-      tipAmount: _asDouble(json['tipAmount'] ?? json['tip']),
+      tipAmount: _asDouble(
+        order['tipAmount'] ?? json['tipAmount'] ?? json['tip'],
+      ),
       distanceKm: _asDouble(
         json['distanceKm'] ?? json['distance'] ?? json['tripDistanceKm'],
       ),
       durationMin: _asInt(
-        json['durationMin'] ??
-            json['estimatedDurationMin'] ??
+        json['estimatedDurationMin'] ??
+            json['durationMin'] ??
             json['etaMin'],
       ),
       category: _firstNonEmpty([
         json['category'],
         json['orderCategory'],
         json['deliveryType'],
+        vendor?['categoryLabel'],
+        categoryFromLabels,
+        order['fulfillmentType'],
       ]),
       expiresAt: _parseDate(
         json['expiresAt'] ??
