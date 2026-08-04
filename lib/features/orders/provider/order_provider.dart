@@ -899,16 +899,26 @@ class OrderProvider extends ChangeNotifier {
 
   /// `POST /drivers/jobs/:jobId/accept`
   Future<JobDetailModel?> acceptJob(String jobId) async {
+    final id = jobId.trim();
+    if (id.isEmpty || id.startsWith('#')) {
+      _acceptJobError = 'Invalid job id';
+      notifyListeners();
+      return null;
+    }
+
     _isAcceptingJob = true;
     _acceptJobError = null;
     notifyListeners();
 
     try {
-      final result = await _orderService.acceptJob(jobId);
+      final result = await _orderService.acceptJob(id);
       _currentJobDetail = result;
       _contactAttempts = result.contactAttempts;
-      removeOffer(jobId);
-      removeScheduledNewJob(jobId);
+      removeOffer(id);
+      removeOffer(result.id);
+      removeOffer(result.order.orderNumber);
+      removeScheduledNewJob(id);
+      removeScheduledNewJob(result.id);
       _deliveryStep = 0;
       return result;
     } on ApiException catch (e) {
@@ -929,18 +939,32 @@ class OrderProvider extends ChangeNotifier {
     required String reason,
     String note = '',
   }) async {
+    final id = jobId.trim();
+    if (id.isEmpty || id.startsWith('#')) {
+      _declineJobError = 'Invalid job id';
+      notifyListeners();
+      return null;
+    }
+
+    final reasonCode = reason.trim();
+    if (reasonCode.isEmpty) {
+      _declineJobError = 'Decline reason is required';
+      notifyListeners();
+      return null;
+    }
+
     _isDecliningJob = true;
     _declineJobError = null;
     notifyListeners();
 
     try {
       final result = await _orderService.declineJob(
-        jobId: jobId,
-        reason: reason,
+        jobId: id,
+        reason: reasonCode,
         note: note,
       );
-      removeOffer(jobId);
-      removeScheduledNewJob(jobId);
+      removeOffer(id);
+      removeScheduledNewJob(id);
       return result;
     } on ApiException catch (e) {
       _declineJobError = e.message;

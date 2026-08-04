@@ -184,15 +184,32 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
+  /// Real job cuid for API calls — never use display order numbers.
+  static String? _apiJobId({required String jobId, required String displayId}) {
+    final primary = jobId.trim();
+    if (primary.isNotEmpty && !primary.startsWith('#')) {
+      return primary;
+    }
+    final fallback = displayId.trim();
+    if (fallback.isNotEmpty &&
+        !fallback.startsWith('#') &&
+        !fallback.toUpperCase().startsWith('YJK-')) {
+      return fallback;
+    }
+    return null;
+  }
+
+  /// Step 1: Accept offer → POST /drivers/jobs/:jobId/accept
+  /// Step 2: On success → leave New; go Require confirmation OR On track
   Future<void> _acceptNewOrder(_NewScheduledOrder order) async {
     final provider = context.read<OrderProvider>();
-    if (provider.isAcceptingJob) return;
+    if (provider.isAcceptingJob || provider.isDecliningJob) return;
 
-    final id = order.jobId.isNotEmpty ? order.jobId : order.id;
+    final jobId = _apiJobId(jobId: order.jobId, displayId: order.id);
 
     void moveToRequireConfirmation({
       String? orderId,
-      String? jobId,
+      String? acceptedJobId,
       String? respondIn,
     }) {
       setState(() {
@@ -200,7 +217,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           0,
           _ConfirmScheduledOrder(
             id: orderId ?? order.id,
-            jobId: jobId ?? order.jobId,
+            jobId: acceptedJobId ?? order.jobId,
             route: order.route,
             window: order.window,
             respondIn: respondIn ?? order.respondIn,
@@ -222,48 +239,56 @@ class _OrdersScreenState extends State<OrdersScreen> {
         _showReleaseScreen = false;
         _showDeliverToCustomer = false;
       });
-      provider.loadScheduledOnTrackJobsBoard();
     }
 
-    if (id.isEmpty || id.startsWith('#')) {
-      // Keep local mock behavior when no real job id is available.
-      provider.removeOffer(id);
-      provider.removeScheduledNewJob(id);
+    // Mock / local-only cards (no real API id).
+    if (jobId == null) {
+      provider.removeOffer(order.jobId.isNotEmpty ? order.jobId : order.id);
+      provider.removeScheduledNewJob(
+        order.jobId.isNotEmpty ? order.jobId : order.id,
+      );
       moveToRequireConfirmation();
       return;
     }
 
-    final result = await provider.acceptJob(id);
+    // Step 1 — accept API
+    final result = await provider.acceptJob(jobId);
     if (!mounted) return;
 
-    if (result != null) {
-      if (result.requiresConfirmation) {
-        final confirmSec = result.confirmExpiresInSec;
-        moveToRequireConfirmation(
-          orderId: result.order.displayOrderNumber.isNotEmpty
-              ? result.order.displayOrderNumber
-              : order.id,
-          jobId: result.id,
-          respondIn: confirmSec != null && confirmSec > 0
-              ? 'Respond within ${(confirmSec / 60).ceil()} min'
-              : order.respondIn,
-        );
-      } else {
-        moveToOnTrack();
-      }
+    if (result == null) {
       AppHelpers.showSnackBar(
         context,
-        result.progressLabel.isNotEmpty
-            ? result.progressLabel
-            : 'Job accepted',
+        provider.acceptJobError ?? 'Failed to accept job',
+        isError: true,
       );
       return;
     }
 
+    // Step 2 — sync New list + counts, then route by confirm window
+    await provider.loadJobOffers();
+    if (!mounted) return;
+    provider.loadScheduledNewJobsBoard();
+
+    if (result.requiresConfirmation) {
+      final confirmSec = result.confirmExpiresInSec;
+      moveToRequireConfirmation(
+        orderId: result.order.displayOrderNumber.isNotEmpty
+            ? result.order.displayOrderNumber
+            : order.id,
+        acceptedJobId: result.id.isNotEmpty ? result.id : jobId,
+        respondIn: confirmSec != null && confirmSec > 0
+            ? 'Respond within ${(confirmSec / 60).ceil()} min'
+            : order.respondIn,
+      );
+    } else {
+      // No double-confirm needed — job is already on track.
+      moveToOnTrack();
+      provider.loadScheduledOnTrackJobsBoard();
+    }
+
     AppHelpers.showSnackBar(
       context,
-      provider.acceptJobError ?? 'Failed to accept job',
-      isError: true,
+      result.progressLabel.isNotEmpty ? result.progressLabel : 'Job accepted',
     );
   }
 
@@ -287,7 +312,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _openReject(_NewScheduledOrder order) {
     setState(() {
       _rejectOrderId = order.id;
-      _rejectJobId = order.jobId.isNotEmpty ? order.jobId : order.id;
+      _rejectJobId = _apiJobId(jobId: order.jobId, displayId: order.id) ??
+          (order.jobId.isNotEmpty ? order.jobId : order.id);
       _showRejectScreen = true;
       _showReleaseScreen = false;
       _showDeliverToCustomer = false;
@@ -304,13 +330,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
+  /// Step 1: Decline → POST /drivers/jobs/:jobId/decline { reason, note }
+  /// Step 2: On success → back to New and refresh offers
   Future<void> _submitReject(String reason, String note) async {
     final provider = context.read<OrderProvider>();
-    if (provider.isDecliningJob) return;
+    if (provider.isDecliningJob || provider.isAcceptingJob) return;
 
-    final jobId = _rejectJobId.trim();
+    final jobId = _apiJobId(jobId: _rejectJobId, displayId: _rejectOrderId);
 
-    void closeRejectLocally() {
+    void closeRejectToNew() {
       setState(() {
         _showRejectScreen = false;
         _scheduledFilter = 0; // Stay on New
@@ -318,31 +346,45 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
     }
 
-    if (jobId.isEmpty || jobId.startsWith('#')) {
-      // Keep local mock behavior when no real job id is available.
-      provider.removeOffer(jobId);
-      provider.removeScheduledNewJob(jobId);
-      closeRejectLocally();
+    // Mock / local-only cards.
+    if (jobId == null) {
+      final localId =
+          _rejectJobId.trim().isNotEmpty ? _rejectJobId.trim() : _rejectOrderId;
+      provider.removeOffer(localId);
+      provider.removeScheduledNewJob(localId);
+      closeRejectToNew();
       return;
     }
 
+    final reasonCode = _mapDeclineReason(reason);
+    final noteText = note.trim().isNotEmpty ? note.trim() : reason.trim();
+
+    // Step 1 — decline API
     final result = await provider.declineJob(
       jobId: jobId,
-      reason: _mapDeclineReason(reason),
-      note: note,
+      reason: reasonCode,
+      note: noteText,
     );
     if (!mounted) return;
 
-    if (result != null) {
-      closeRejectLocally();
-      AppHelpers.showSnackBar(context, result.message);
+    if (result == null) {
+      AppHelpers.showSnackBar(
+        context,
+        provider.declineJobError ?? 'Failed to decline job',
+        isError: true,
+      );
       return;
     }
 
+    // Step 2 — sync New list
+    closeRejectToNew();
+    await provider.loadJobOffers();
+    if (!mounted) return;
+    provider.loadScheduledNewJobsBoard();
+
     AppHelpers.showSnackBar(
       context,
-      provider.declineJobError ?? 'Failed to decline job',
-      isError: true,
+      result.message.isNotEmpty ? result.message : 'Delivery request declined',
     );
   }
 
@@ -1060,7 +1102,8 @@ class _NewScheduledCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAccepting = context.watch<OrderProvider>().isAcceptingJob;
+    final provider = context.watch<OrderProvider>();
+    final isBusy = provider.isAcceptingJob || provider.isDecliningJob;
 
     return Container(
       width: double.infinity,
@@ -1145,10 +1188,10 @@ class _NewScheduledCard extends StatelessWidget {
                     color: _OrdersScreenState._green,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
-                      onTap: isAccepting ? null : onAccept,
+                      onTap: isBusy ? null : onAccept,
                       borderRadius: BorderRadius.circular(12),
                       child: Center(
-                        child: isAccepting
+                        child: isBusy && provider.isAcceptingJob
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
@@ -1183,7 +1226,7 @@ class _NewScheduledCard extends StatelessWidget {
                       ),
                     ),
                     child: InkWell(
-                      onTap: isAccepting ? null : onReject,
+                      onTap: isBusy ? null : onReject,
                       borderRadius: BorderRadius.circular(12),
                       child: const Center(
                         child: Text(
