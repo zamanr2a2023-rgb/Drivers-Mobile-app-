@@ -2,7 +2,7 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  static const String baseUrl = 'http://192.168.10.251:3000/api/v1';
+  static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
