@@ -4,28 +4,45 @@ import 'package:yjeek_driver/core/models/map_location.dart';
 
 /// Real device location via Geolocator + permission_handler.
 class LocationService {
+  static Future<ph.PermissionStatus>? _permissionRequest;
+
   Future<bool> isLocationServiceEnabled() {
     return Geolocator.isLocationServiceEnabled();
   }
 
   Future<bool> hasLocationPermission() async {
-    final status = await ph.Permission.locationWhenInUse.status;
-    return status.isGranted;
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
   }
 
-  /// Returns true if granted. Opens app settings when permanently denied.
+  /// Requests location permission. Does not open Settings automatically —
+  /// call [openAppSettings] only from an explicit user action (e.g. Retry).
+  /// Concurrent callers share one in-flight request (iOS forbids parallel asks).
   Future<ph.PermissionStatus> requestLocationPermission() async {
-    var status = await ph.Permission.locationWhenInUse.status;
-    if (status.isGranted) return status;
+    final existing = _permissionRequest;
+    if (existing != null) return existing;
 
-    if (status.isPermanentlyDenied) {
-      await ph.openAppSettings();
-      return ph.Permission.locationWhenInUse.status;
+    final future = _requestLocationPermissionInternal();
+    _permissionRequest = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_permissionRequest, future)) {
+        _permissionRequest = null;
+      }
     }
-
-    status = await ph.Permission.locationWhenInUse.request();
-    return status;
   }
+
+  Future<ph.PermissionStatus> _requestLocationPermissionInternal() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return _toPermissionStatus(permission);
+  }
+
+  Future<bool> openAppSettings() => ph.openAppSettings();
 
   Future<MapLocation?> getCurrentMapLocation() async {
     final serviceEnabled = await isLocationServiceEnabled();
@@ -69,5 +86,19 @@ class LocationService {
         distanceFilter: distanceFilterMeters,
       ),
     );
+  }
+
+  ph.PermissionStatus _toPermissionStatus(LocationPermission permission) {
+    switch (permission) {
+      case LocationPermission.always:
+      case LocationPermission.whileInUse:
+        return ph.PermissionStatus.granted;
+      case LocationPermission.deniedForever:
+        return ph.PermissionStatus.permanentlyDenied;
+      case LocationPermission.unableToDetermine:
+        return ph.PermissionStatus.denied;
+      case LocationPermission.denied:
+        return ph.PermissionStatus.denied;
+    }
   }
 }

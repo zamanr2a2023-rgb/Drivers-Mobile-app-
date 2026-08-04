@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/models/map_location.dart';
 import 'package:yjeek_driver/core/services/map_service.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/complete_delivery_screen.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Local UI-only “Deliver to customer” screen (Instant Active → Continue).
+/// “Deliver to customer” screen (Instant Active → Continue).
+/// Loads job details from `GET /drivers/jobs/:jobId`.
 /// Shown inside Orders tab so BottomNavigation stays on Orders.
 class DeliverToCustomerScreen extends StatefulWidget {
   const DeliverToCustomerScreen({
     super.key,
     required this.onBack,
+    required this.jobId,
   });
 
   final VoidCallback onBack;
+  final String jobId;
 
   @override
   State<DeliverToCustomerScreen> createState() =>
@@ -28,22 +36,58 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
   static const Color _cardBorder = Color(0xFFE0E0E0);
   static const Color _prepaidBg = Color(0xFFE8F5E9);
   static const Color _prepaidText = Color(0xFF2E7D32);
+  static const Color _codBg = Color(0xFFFFF0DE);
+  static const Color _codOrange = Color(0xFFE67E22);
   static const Color _reportText = Color(0xFFCFE3D5);
   static const Color _reportBg = Color(0xFFFFF8F3);
   static const Color _reportBorder = Color(0xFFF5A623);
   static const Color _reportOrange = Color(0xFFE67E22);
   static const Color _navigateBlack = Color(0xFF1A1A1A);
 
-  static const String _customerAddress = 'Adliya · Bldg 23, Road 2825';
+  static const String _cashIconAsset =
+      'assets/images/cash_on_delivery_icon.png';
 
   bool _showCompleteDelivery = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<OrderProvider>().loadJobDetail(widget.jobId);
+    });
+  }
 
   void _openCompleteDelivery() {
     Navigator.pushNamed(context, RouteNames.completeDelivery);
   }
 
+  Future<void> _arriveAtCustomer() async {
+    final provider = context.read<OrderProvider>();
+    if (provider.isArrivingAtCustomer) return;
+
+    final success = await provider.arriveAtCustomer(widget.jobId);
+    if (!mounted) return;
+
+    if (success) {
+      _openCompleteDelivery();
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      provider.arriveCustomerError ?? 'Failed to mark arrived at customer',
+      isError: true,
+    );
+  }
+
   void _closeCompleteDelivery() {
     setState(() => _showCompleteDelivery = false);
+  }
+
+  void _handleBack() {
+    context.read<OrderProvider>().clearJobDetail();
+    widget.onBack();
   }
 
   @override
@@ -57,6 +101,11 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
       );
     }
 
+    final provider = context.watch<OrderProvider>();
+    final job = provider.currentJobDetail;
+    final isLoading = provider.isLoadingJobDetail;
+    final isArriving = provider.isArrivingAtCustomer;
+    final error = provider.jobDetailError;
     final topInset = MediaQuery.paddingOf(context).top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -68,7 +117,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) widget.onBack();
+          if (!didPop) _handleBack();
         },
         child: ColoredBox(
           color: _screenBg,
@@ -78,27 +127,13 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                 color: Colors.white,
                 child: SizedBox(height: topInset),
               ),
-              _buildHeader(),
+              _buildHeader(job),
               Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    const _DeliveryMapPlaceholder(),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                      child: Column(
-                        children: [
-                          _buildDropOffCard(),
-                          const SizedBox(height: 12),
-                          _buildPrepaidBanner(),
-                          const SizedBox(height: 14),
-                          _buildReportNavigateRow(),
-                          const SizedBox(height: 12),
-                          _buildArrivedButton(),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: _buildBody(
+                  isLoading: isLoading,
+                  isArriving: isArriving,
+                  error: error,
+                  job: job,
                 ),
               ),
             ],
@@ -108,7 +143,111 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildBody({
+    required bool isLoading,
+    required bool isArriving,
+    required String? error,
+    required JobDetailModel? job,
+  }) {
+    if (isLoading && job == null) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: _headerGreen,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+
+    if (error != null && job == null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+        children: [
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _textMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  context.read<OrderProvider>().loadJobDetail(widget.jobId),
+              child: const Text('Retry'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (job == null) {
+      return const Center(
+        child: Text(
+          'Job not found',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: _textMuted,
+          ),
+        ),
+      );
+    }
+
+    final dropoff = MapLocation.tryParse(
+      latitude: job.order.address.latitude,
+      longitude: job.order.address.longitude,
+      label: job.order.customer.displayName,
+      kind: MapLocationKind.dropoff,
+    );
+    final pickup = MapLocation.tryParse(
+      latitude: job.order.vendor.latitude,
+      longitude: job.order.vendor.longitude,
+      label: job.order.vendor.name,
+      kind: MapLocationKind.pickup,
+    );
+
+    return RefreshIndicator(
+      color: _headerGreen,
+      onRefresh: () =>
+          context.read<OrderProvider>().loadJobDetail(widget.jobId),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        children: [
+          AppGoogleMap(
+            height: 200,
+            pickup: pickup,
+            dropoff: dropoff,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            child: Column(
+              children: [
+                _buildDropOffCard(job),
+                const SizedBox(height: 12),
+                if (job.requiresCashCollection)
+                  _buildCashBanner(job)
+                else
+                  _buildPrepaidBanner(),
+                const SizedBox(height: 14),
+                _buildReportNavigateRow(job),
+                const SizedBox(height: 12),
+                _buildArrivedButton(isArriving: isArriving),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(JobDetailModel? job) {
+    final subtitle = job?.distanceEtaLabel ?? '…';
+
     return Container(
       width: double.infinity,
       color: _headerGreen,
@@ -120,7 +259,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
             color: Colors.white.withValues(alpha: 0.22),
             shape: const CircleBorder(),
             child: InkWell(
-              onTap: widget.onBack,
+              onTap: _handleBack,
               customBorder: const CircleBorder(),
               child: const SizedBox(
                 width: 36,
@@ -134,11 +273,11 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Deliver to customer',
                   style: TextStyle(
                     fontSize: 15,
@@ -147,10 +286,10 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  '4.2 km · ~18 min',
-                  style: TextStyle(
+                  subtitle,
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: _reportText,
@@ -191,7 +330,8 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     );
   }
 
-  Widget _buildDropOffCard() {
+  Widget _buildDropOffCard(JobDetailModel job) {
+    final order = job.order;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -213,13 +353,13 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          _buildDetailRow('Customer', 'Sara A.'),
+          _buildDetailRow('Customer', order.customer.displayName),
           const SizedBox(height: 10),
-          _buildDetailRow('Phone', '+973 3300 0000'),
+          _buildDetailRow('Phone', order.customer.displayPhone),
           const SizedBox(height: 10),
-          _buildDetailRow('Address', _customerAddress),
+          _buildDetailRow('Address', order.address.shortLabel),
           const SizedBox(height: 10),
-          _buildDetailRow('Window', 'Today · 6–8 PM'),
+          _buildDetailRow('Window', order.windowLabel),
         ],
       ),
     );
@@ -284,7 +424,72 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     );
   }
 
-  Widget _buildReportNavigateRow() {
+  Widget _buildCashBanner(JobDetailModel job) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _codBg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SizedBox(
+              width: 22,
+              height: 13,
+              child: Image.asset(
+                _cashIconAsset,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.payments_outlined,
+                  color: _codOrange,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Collect cash on delivery',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _codOrange,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  job.order.cashCollectLabel,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: _codOrange,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportNavigateRow(JobDetailModel job) {
+    final address = job.order.address.navigationAddress;
+    final customerName = job.order.customer.displayName;
+    final orderId = job.order.displayOrderNumber.isNotEmpty
+        ? job.order.displayOrderNumber
+        : job.id;
+
     return Row(
       children: [
         Expanded(
@@ -300,6 +505,11 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                 onTap: () => Navigator.pushNamed(
                   context,
                   RouteNames.reportAtDropoff,
+                  arguments: {
+                    'orderId': orderId,
+                    'customerName': customerName,
+                    'address': address,
+                  },
                 ),
                 borderRadius: BorderRadius.circular(14),
                 child: const Row(
@@ -333,10 +543,23 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
               color: _navigateBlack,
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
-                onTap: () => MapService.openNavigationOrShowError(
-                  context,
-                  address: _customerAddress,
-                ),
+                onTap: () {
+                  final lat = job.order.address.latitude;
+                  final lng = job.order.address.longitude;
+                  if (lat != null && lng != null) {
+                    MapService.openNavigationOrShowError(
+                      context,
+                      latitude: lat,
+                      longitude: lng,
+                      address: address,
+                    );
+                  } else {
+                    MapService.openNavigationOrShowError(
+                      context,
+                      address: address,
+                    );
+                  }
+                },
                 borderRadius: BorderRadius.circular(14),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -365,7 +588,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     );
   }
 
-  Widget _buildArrivedButton() {
+  Widget _buildArrivedButton({required bool isArriving}) {
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -373,29 +596,29 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
         color: _headerGreen,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: _openCompleteDelivery,
+          onTap: isArriving ? null : _arriveAtCustomer,
           borderRadius: BorderRadius.circular(14),
-          child: const Center(
-            child: Text(
-              'Arrived at customer',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+          child: Center(
+            child: isArriving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Arrived at customer',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
     );
-  }
-}
-
-class _DeliveryMapPlaceholder extends StatelessWidget {
-  const _DeliveryMapPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const AppGoogleMap(height: 200);
   }
 }

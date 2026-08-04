@@ -356,7 +356,7 @@ class AppRoutes {
       case RouteNames.verifyHandover:
         return _page(VerifyHandoverScreen(args: _incidentArgs(settings)));
       case RouteNames.safetyHelp:
-        return _page(const SafetyHelpScreen());
+        return _page(SafetyHelpScreen(jobId: _safetyHelpJobId(settings)));
       case RouteNames.dispatchChat:
         return _page(const DispatchChatScreen());
       case RouteNames.dispatchCantReachChat:
@@ -384,8 +384,28 @@ class AppRoutes {
       case RouteNames.changeNumber:
         return _page(const ChangeNumberScreen());
       case RouteNames.verifyChangeNumber:
-        final phone = settings.arguments as String? ?? '+973 3300 0000';
-        return _page(VerifyChangeNumberScreen(phoneDisplay: phone));
+        final args = settings.arguments;
+        final VerifyChangeNumberArgs verifyArgs;
+        if (args is VerifyChangeNumberArgs) {
+          verifyArgs = args;
+        } else if (args is String) {
+          final digits = args.replaceAll(RegExp(r'\D'), '');
+          final phone = digits.startsWith('973') && digits.length > 8
+              ? digits.substring(3)
+              : digits;
+          verifyArgs = VerifyChangeNumberArgs(
+            phone: phone,
+            countryCode: '+973',
+            phoneDisplay: args,
+          );
+        } else {
+          verifyArgs = const VerifyChangeNumberArgs(
+            phone: '',
+            countryCode: '+973',
+            phoneDisplay: '+973 3300 0000',
+          );
+        }
+        return _page(VerifyChangeNumberScreen(args: verifyArgs));
       case RouteNames.editProfile:
         return _page(const EditProfileScreen());
       case RouteNames.vehicleInfo:
@@ -416,6 +436,16 @@ class AppRoutes {
       );
     }
     return const IncidentContextArgs();
+  }
+
+  static String? _safetyHelpJobId(RouteSettings settings) {
+    final args = settings.arguments;
+    if (args is String && args.trim().isNotEmpty) return args.trim();
+    if (args is Map) {
+      final jobId = args['jobId']?.toString().trim();
+      if (jobId != null && jobId.isNotEmpty) return jobId;
+    }
+    return null;
   }
 
   static MaterialPageRoute<dynamic> _page(Widget child) {

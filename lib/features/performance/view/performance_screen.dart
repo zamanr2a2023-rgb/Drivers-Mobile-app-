@@ -1,14 +1,106 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE2 · Performance
-class PerformanceScreen extends StatelessWidget {
+class PerformanceScreen extends StatefulWidget {
   const PerformanceScreen({super.key});
 
   @override
+  State<PerformanceScreen> createState() => _PerformanceScreenState();
+}
+
+class _PerformanceScreenState extends State<PerformanceScreen> {
+  bool _isLoading = false;
+  bool _hasData = false;
+
+  int _rpiScore = 0;
+  int _totalOrders = 0;
+  int _acceptanceRate = 0;
+  int _completionRate = 0;
+  double _averageRating = 0;
+  int _onTimeRate = 0;
+  String _standing = '';
+  String _standingMessage = '';
+  String _tierLabel = '';
+  bool _bonusUnlocked = false;
+  String _weeklyBonusMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadPerformance();
+    });
+  }
+
+  Future<void> _loadPerformance() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final response =
+          await ApiService.instance.get(ApiEndpoints.performance);
+
+      if (response['success'] != true) {
+        final message = response['message']?.toString().trim();
+        throw ApiException(
+          (message != null && message.isNotEmpty)
+              ? message
+              : 'Failed to load performance',
+        );
+      }
+
+      final data = response['data'];
+      if (data is! Map) {
+        throw ApiException('Invalid response from server');
+      }
+
+      final weeklyBonus = data['weeklyBonus'];
+
+      setState(() {
+        _rpiScore = _asInt(data['rpiScore']);
+        _totalOrders = _asInt(data['totalOrders']);
+        _acceptanceRate = _asInt(data['acceptanceRate']);
+        _completionRate = _asInt(data['completionRate']);
+        _averageRating = _asDouble(data['averageRating']);
+        _onTimeRate = _asInt(data['onTimeRate']);
+        _standing = data['standing']?.toString() ?? '';
+        _standingMessage = data['standingMessage']?.toString() ?? '';
+
+        _tierLabel = data['tierLabel']?.toString() ?? '';
+
+        if (weeklyBonus is Map) {
+          _bonusUnlocked = weeklyBonus['unlocked'] == true;
+          _weeklyBonusMessage =
+              weeklyBonus['message']?.toString() ?? '';
+        }
+
+        _hasData = true;
+      });
+    } catch (_) {
+      // Keep hardcoded fallback values until next refresh.
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final rpiScore = _hasData ? _rpiScore : 88;
+    final totalOrders = _hasData ? _totalOrders : 284;
+    final acceptanceRate = _hasData ? _acceptanceRate : 92;
+    final completionRate = _hasData ? _completionRate : 98;
+    final averageRating = _hasData ? _averageRating : 4.9;
+    final onTimeRate = _hasData ? _onTimeRate : 95;
+    final standing = _hasData ? _standing : 'Great standing';
+    final standingMessage = _hasData
+        ? _standingMessage
+        : 'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.';
+
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
@@ -31,23 +123,30 @@ class PerformanceScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 child: Column(
                   children: [
-                    _buildRpiCard(),
+                    _buildRpiCard(
+                      rpiScore: rpiScore,
+                      standing: standing,
+                      standingMessage: standingMessage,
+                    ),
                     const SizedBox(height: 14),
-                    const _StatCard(
-                      value: '284',
+                    _StatCard(
+                      value: '$totalOrders',
                       label: 'Total orders',
                       centered: true,
                     ),
                     const SizedBox(height: 14),
                     Row(
-                      children: const [
-                        Expanded(
-                          child: _StatCard(value: '92%', label: 'Acceptance'),
-                        ),
-                        SizedBox(width: 10),
+                      children: [
                         Expanded(
                           child: _StatCard(
-                            value: '98%',
+                            value: '$acceptanceRate%',
+                            label: 'Acceptance',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatCard(
+                            value: '$completionRate%',
                             label: 'Completion',
                             valueColor: DocColors.greenDark,
                           ),
@@ -56,22 +155,25 @@ class PerformanceScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Row(
-                      children: const [
+                      children: [
                         Expanded(
                           child: _StatCard(
-                            value: '4.9★',
+                            value: '${averageRating.toStringAsFixed(1)}★',
                             label: 'Rating',
                             valueColor: DocColors.gold,
                           ),
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: _StatCard(value: '95%', label: 'On-time'),
+                          child: _StatCard(
+                            value: '$onTimeRate%',
+                            label: 'On-time',
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _buildGoldTierCard(),
+                    _buildTierCard(),
                   ],
                 ),
               ),
@@ -82,7 +184,13 @@ class PerformanceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRpiCard() {
+  Widget _buildRpiCard({
+    required int rpiScore,
+    required String standing,
+    required String standingMessage,
+  }) {
+    final progress = (rpiScore / 100).clamp(0.0, 1.0);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -93,22 +201,22 @@ class PerformanceScreen extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          SizedBox(height: 8),
+        children: [
+          const SizedBox(height: 8),
           Center(
             child: SizedBox(
               width: 140,
               height: 140,
               child: CustomPaint(
-                painter: _RpiGaugePainter(progress: 0.88),
+                painter: _RpiGaugePainter(progress: progress),
               ),
             ),
           ),
-          SizedBox(height: 18),
+          const SizedBox(height: 18),
           Center(
             child: Text(
-              '88',
-              style: TextStyle(
+              '$rpiScore',
+              style: const TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w700,
                 color: DocColors.greenDeep,
@@ -116,7 +224,7 @@ class PerformanceScreen extends StatelessWidget {
               ),
             ),
           ),
-          Center(
+          const Center(
             child: Text(
               'RPI score',
               style: TextStyle(
@@ -126,32 +234,41 @@ class PerformanceScreen extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
-            'Great standing',
-            style: TextStyle(
+            standing,
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: DocColors.textPrimary,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.',
-            style: TextStyle(
+            standingMessage,
+            style: const TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w400,
               height: 1.4,
               color: DocColors.textSecondary,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  Widget _buildGoldTierCard() {
+  Widget _buildTierCard() {
+    final tierLabel = _hasData ? _tierLabel : 'Gold';
+    final bonusUnlocked = _hasData ? _bonusUnlocked : true;
+    final titleText = bonusUnlocked
+        ? '$tierLabel tier · weekly bonus unlocked'
+        : '$tierLabel tier · weekly bonus';
+    final subtitleText = _hasData
+        ? _weeklyBonusMessage
+        : '32 / 30 trips this week · BHD 8 bonus earned';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -170,19 +287,19 @@ class PerformanceScreen extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'Gold tier · weekly bonus unlocked',
-                  style: TextStyle(
+                  titleText,
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: DocColors.tierText,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  '32 / 30 trips this week · BHD 8 bonus earned',
-                  style: TextStyle(
+                  subtitleText,
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: DocColors.tierText,
@@ -194,6 +311,16 @@ class PerformanceScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
 
@@ -265,10 +392,8 @@ class _RpiGaugePainter extends CustomPainter {
       ..strokeWidth = stroke;
     canvas.drawCircle(center, radius, track);
 
-    // Four short green dashes evenly spaced with wide grey gaps,
-    // matching the dashed ring in the design.
     const dashes = 4;
-    const gap = 0.8; // radians of grey visible between dashes
+    const gap = 0.8;
     const dashSweep = (2 * math.pi / dashes) - gap;
 
     final arc = Paint()

@@ -7,8 +7,10 @@ import 'package:yjeek_driver/features/auth/service/auth_service.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 class AuthProvider extends ChangeNotifier {
+  Future<void>? _restoreFuture;
+
   AuthProvider() {
-    _restoreSession();
+    _restoreFuture = _restoreSession();
   }
 
   final AuthService _authService = AuthService();
@@ -34,6 +36,9 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated =>
       _accessToken != null && _accessToken!.isNotEmpty && _user != null;
+
+  /// Ensures stored token/user are loaded (safe to call multiple times).
+  Future<void> restoreSession() => _restoreFuture ??= _restoreSession();
 
   Future<void> _restoreSession() async {
     await _authService.restoreSession();
@@ -163,6 +168,17 @@ class AuthProvider extends ChangeNotifier {
     _countryCode = null;
     _expiresInSeconds = null;
     _error = null;
+    _restoreFuture = null;
+    notifyListeners();
+  }
+
+  /// Updates in-memory tokens after account phone change (or similar flows).
+  void applyTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) {
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
     notifyListeners();
   }
 }

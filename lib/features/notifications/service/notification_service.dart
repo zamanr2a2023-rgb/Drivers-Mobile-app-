@@ -1,41 +1,70 @@
+import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/notifications/model/notification_model.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 class NotificationService {
-  Future<List<NotificationModel>> getNotifications() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    final now = DateTime.now();
-    return [
-      NotificationModel(
-        id: 'N1',
-        title: 'New Order Available',
-        body: 'A new delivery request is waiting for you nearby.',
-        type: 'order',
-        createdAt: now.subtract(const Duration(minutes: 5)),
-      ),
-      NotificationModel(
-        id: 'N2',
-        title: 'Payment Processed',
-        body: 'Your payout of \$125.00 has been processed.',
-        type: 'payment',
-        createdAt: now.subtract(const Duration(hours: 2)),
-        isRead: true,
-      ),
-      NotificationModel(
-        id: 'N3',
-        title: 'Account Update',
-        body: 'Your vehicle documents have been verified.',
-        type: 'account',
-        createdAt: now.subtract(const Duration(days: 1)),
-        isRead: true,
-      ),
-      NotificationModel(
-        id: 'N4',
-        title: 'Safety Alert',
-        body: 'Heavy rain expected in your area. Drive safely.',
-        type: 'safety',
-        createdAt: now.subtract(const Duration(days: 2)),
-        isRead: true,
-      ),
-    ];
+  NotificationService({ApiService? apiService})
+      : _api = apiService ?? ApiService.instance;
+
+  final ApiService _api;
+
+  Future<NotificationsListData> getNotifications() async {
+    final response = await _api.get(ApiEndpoints.notifications);
+
+    if (response['success'] != true) {
+      final message = response['message']?.toString();
+      throw ApiException(
+        (message != null && message.trim().isNotEmpty)
+            ? message.trim()
+            : 'Failed to load notifications',
+      );
+    }
+
+    try {
+      return NotificationsListData.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  Future<void> markAllAsRead() async {
+    final response = await _api.patch(ApiEndpoints.notificationsReadAll);
+
+    if (response['success'] != true) {
+      final message = response['message']?.toString();
+      throw ApiException(
+        (message != null && message.trim().isNotEmpty)
+            ? message.trim()
+            : 'Failed to mark notifications as read',
+      );
+    }
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      throw ApiException('Notification not found');
+    }
+
+    final response = await _api.patch(ApiEndpoints.notificationRead(id));
+
+    if (response['success'] != true) {
+      throw ApiException(
+        _failureMessage(response, 'Failed to mark notification as read'),
+      );
+    }
+  }
+
+  String _failureMessage(Map<String, dynamic> response, String fallback) {
+    final message = response['message']?.toString();
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+
+    final error = response['error'];
+    if (error is Map) {
+      final nested = error['message']?.toString();
+      if (nested != null && nested.trim().isNotEmpty) return nested.trim();
+    }
+
+    return fallback;
   }
 }

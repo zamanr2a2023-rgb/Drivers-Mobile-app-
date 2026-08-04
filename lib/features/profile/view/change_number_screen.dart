@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/features/profile/view/verify_change_number_screen.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/services/api_service.dart';
 
 /// DA2 · Change number
 class ChangeNumberScreen extends StatefulWidget {
@@ -11,7 +15,21 @@ class ChangeNumberScreen extends StatefulWidget {
 }
 
 class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
+  static const String _countryCode = '+973';
+
+  final ProfileService _profileService = ProfileService();
   final _numberController = TextEditingController();
+
+  bool _isSending = false;
+  String _currentPhoneDisplay = '+973 3300 0000';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentPhone();
+    });
+  }
 
   @override
   void dispose() {
@@ -19,30 +37,87 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
     super.dispose();
   }
 
+  String get _phoneDigits =>
+      _numberController.text.replaceAll(RegExp(r'\D'), '');
+
   String get _formattedPhone {
-    final digits = _numberController.text.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return '+973 3300 0000';
-    if (digits.length <= 4) return '+973 $digits';
-    return '+973 ${digits.substring(0, 4)} ${digits.substring(4)}';
+    final digits = _phoneDigits;
+    if (digits.isEmpty) return '$_countryCode ';
+    if (digits.length <= 4) return '$_countryCode $digits';
+    return '$_countryCode ${digits.substring(0, 4)} ${digits.substring(4)}';
+  }
+
+  String _formatPhone(String countryCode, String phone) {
+    final code = countryCode.trim().isEmpty ? _countryCode : countryCode.trim();
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return code;
+    if (digits.length <= 4) return '$code $digits';
+    return '$code ${digits.substring(0, 4)} ${digits.substring(4)}';
+  }
+
+  Future<void> _loadCurrentPhone() async {
+    try {
+      final personal = await _profileService.getPersonalAccount();
+      if (!mounted) return;
+      final phone = personal.phone.trim();
+      if (phone.isEmpty) return;
+      setState(() {
+        _currentPhoneDisplay = _formatPhone(personal.countryCode, phone);
+      });
+    } catch (_) {
+      // Keep fallback current number.
+    }
   }
 
   Future<void> _sendCode() async {
-    final digits = _numberController.text.replaceAll(RegExp(r'\D'), '');
+    final digits = _phoneDigits;
     if (digits.length < 8) {
       showDocSnack(context, 'Please enter a valid phone number');
       return;
     }
+    if (_isSending) return;
 
     FocusScope.of(context).unfocus();
-    final verified = await Navigator.pushNamed(
-      context,
-      RouteNames.verifyChangeNumber,
-      arguments: _formattedPhone,
-    );
+    setState(() => _isSending = true);
 
-    if (!mounted) return;
-    if (verified == true) {
-      Navigator.pop(context);
+    try {
+      final result = await _profileService.sendPhoneChangeOtp(
+        phone: digits,
+        countryCode: _countryCode,
+      );
+      if (!mounted) return;
+
+      if (kDebugMode) {
+        final devCode = result.devCode?.trim();
+        if (devCode != null && devCode.isNotEmpty) {
+          showDocSnack(context, 'Dev OTP: $devCode');
+        }
+      }
+
+      final verified = await Navigator.pushNamed(
+        context,
+        RouteNames.verifyChangeNumber,
+        arguments: VerifyChangeNumberArgs(
+          phone: digits,
+          countryCode: _countryCode,
+          phoneDisplay: _formattedPhone,
+          expiresInSeconds: result.expiresInSeconds,
+        ),
+      );
+
+      if (!mounted) return;
+      if (verified == true) {
+        Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      showDocSnack(context, e.message);
+    } catch (_) {
+      if (!mounted) return;
+      showDocSnack(context, 'Failed to send OTP');
+    } finally {
+      if (!mounted) return;
+      setState(() => _isSending = false);
     }
   }
 
@@ -76,13 +151,23 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
                     const SizedBox(height: 14),
                     _buildInfoBanner(),
                     const SizedBox(height: 22),
-                    DocPrimaryButton(
-                      label: 'Send code',
-                      color: DocColors.pillGreen,
-                      radius: 28,
-                      height: 52,
-                      onPressed: _sendCode,
-                    ),
+                    if (_isSending)
+                      const SizedBox(
+                        height: 52,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: DocColors.pillGreen,
+                          ),
+                        ),
+                      )
+                    else
+                      DocPrimaryButton(
+                        label: 'Send code',
+                        color: DocColors.pillGreen,
+                        radius: 28,
+                        height: 52,
+                        onPressed: _sendCode,
+                      ),
                   ],
                 ),
               ),
@@ -104,8 +189,8 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
+        children: [
+          const Text(
             'Current number',
             style: TextStyle(
               fontSize: 12.5,
@@ -113,10 +198,10 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
               color: Color(0xFF6B756E),
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            '+973 3300 0000',
-            style: TextStyle(
+            _currentPhoneDisplay,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: DocColors.textPrimary,
@@ -154,6 +239,7 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
           Expanded(
             child: TextField(
               controller: _numberController,
+              enabled: !_isSending,
               keyboardType: TextInputType.phone,
               style: const TextStyle(
                 fontSize: 15,

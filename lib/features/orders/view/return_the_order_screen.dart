@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_vape_return_state.dart';
 
-/// Return-the-order screen for failed age-verification Scheduled Vape deliveries.
+/// Return-the-order screen for failed verification (age / secure).
+/// Starts return, then confirms handover via `POST .../confirm-return`.
 class ReturnTheOrderScreen extends StatefulWidget {
   const ReturnTheOrderScreen({
     super.key,
@@ -46,11 +50,77 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
   String? _selectedReason;
   bool _hasReturnPhoto = false;
   Uint8List? _returnPhotoBytes;
-  bool _isSubmitting = false;
   String? _inlineError;
   final ImagePicker _imagePicker = ImagePicker();
 
   ScheduledDeliveryOrder get order => widget.order;
+
+  bool get _isSubmitting =>
+      context.watch<OrderProvider>().isProcessingReturn;
+
+  bool get _isSecureReturn {
+    final category = order.category.toLowerCase();
+    final type = order.orderTypeLabel.toLowerCase();
+    final status = order.cardStatusLine.toLowerCase();
+    return order.isFragileHighValue ||
+        category.contains('luxury') ||
+        category.contains('high-value') ||
+        type.contains('luxury') ||
+        status.contains('restricted high-value') ||
+        status.contains('secure');
+  }
+
+  static String _mapAgeReasonCode(String reasonLabel) {
+    switch (reasonLabel) {
+      case 'Customer is under 18':
+        return 'UNDER_18';
+      case 'No valid ID shown':
+        return 'NO_VALID_ID';
+      case 'Name does not match the order':
+        return 'NAME_MISMATCH';
+      case 'Customer not present':
+        return 'CUSTOMER_NOT_PRESENT';
+      case 'Customer refused ID check':
+        return 'CUSTOMER_REFUSED';
+      default:
+        return 'NO_VALID_ID';
+    }
+  }
+
+  static String _mapSecureReasonCode(String reasonLabel) {
+    switch (reasonLabel) {
+      case 'Customer not present':
+        return 'RECIPIENT_NOT_PRESENT';
+      case 'Name does not match the order':
+        return 'RECIPIENT_MISMATCH';
+      case 'Customer refused ID check':
+        return 'VERIFICATION_REFUSED';
+      case 'No valid ID shown':
+        return 'NO_VALID_ID';
+      case 'Customer is under 18':
+      default:
+        return 'CODE_VERIFICATION_FAILED';
+    }
+  }
+
+  String? _resolveJobId(OrderProvider orders) {
+    final detailId = orders.currentJobDetail?.id.trim();
+    if (detailId != null &&
+        detailId.isNotEmpty &&
+        !detailId.startsWith('#')) {
+      return detailId;
+    }
+
+    if (orders.instantActiveJobs.isNotEmpty) {
+      final activeId = orders.instantActiveJobs.first.id.trim();
+      if (activeId.isNotEmpty && !activeId.startsWith('#')) return activeId;
+    }
+
+    final orderId = order.orderId.trim();
+    if (orderId.isNotEmpty && !orderId.startsWith('#')) return orderId;
+
+    return null;
+  }
 
   Future<void> _selectReturnPhoto() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -115,7 +185,8 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
   }
 
   Future<void> _confirmReturn() async {
-    if (_isSubmitting) return;
+    final provider = context.read<OrderProvider>();
+    if (provider.isProcessingReturn) return;
 
     if (_selectedReason == null) {
       setState(() {
@@ -131,15 +202,54 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-      _inlineError = null;
-    });
+    final jobId = _resolveJobId(provider);
+    if (jobId == null) {
+      setState(() {
+        _inlineError = 'No active job found to start return.';
+      });
+      return;
+    }
 
-    try {
-      await Future<void>.delayed(const Duration(milliseconds: 900));
+    setState(() => _inlineError = null);
 
+    final alreadyReturning = provider.currentJobDetail?.status.trim() ==
+        'RETURNING_TO_VENDOR';
+
+    if (!alreadyReturning) {
+      final isSecure = _isSecureReturn;
+      final reasonCode = isSecure
+          ? _mapSecureReasonCode(_selectedReason!)
+          : _mapAgeReasonCode(_selectedReason!);
+      final note = isSecure && reasonCode == 'CODE_VERIFICATION_FAILED'
+          ? 'Recipient could not provide the one-time code'
+          : _selectedReason!;
+
+      final startResult = isSecure
+          ? await provider.returnSecureOrder(
+              jobId: jobId,
+              reason: reasonCode,
+              returnPhotoBytes: _returnPhotoBytes!,
+              note: note,
+            )
+          : await provider.returnAgeRestricted(
+              jobId: jobId,
+              reason: reasonCode,
+              returnPhotoBytes: _returnPhotoBytes!,
+              note: note,
+            );
       if (!mounted) return;
+
+      if (startResult == null) {
+        AppHelpers.showSnackBar(
+          context,
+          (isSecure
+                  ? provider.returnSecureOrderError
+                  : provider.returnAgeRestrictedError) ??
+              'Failed to start return',
+          isError: true,
+        );
+        return;
+      }
 
       ScheduledVapeReturnState.save(
         ScheduledVapeReturnSubmission(
@@ -149,26 +259,24 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
           submittedAt: DateTime.now(),
         ),
       );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Return to vendor submitted successfully.'),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to submit return. Please try again.'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
     }
+
+    final confirmResult = await provider.confirmReturnHandover(
+      jobId: jobId,
+      vendorHandoverPhotoBytes: _returnPhotoBytes!,
+    );
+    if (!mounted) return;
+
+    if (confirmResult != null) {
+      AppHelpers.showSnackBar(context, confirmResult.message);
+      return;
+    }
+
+    AppHelpers.showSnackBar(
+      context,
+      provider.confirmReturnError ?? 'Failed to confirm return handover',
+      isError: true,
+    );
   }
 
   @override
@@ -176,6 +284,7 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
     ScheduledDeliveryScale.update(MediaQuery.sizeOf(context));
     final topInset = MediaQuery.paddingOf(context).top;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final isSubmitting = _isSubmitting;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -184,9 +293,9 @@ class _ReturnTheOrderScreenState extends State<ReturnTheOrderScreen> {
         statusBarBrightness: Brightness.light,
       ),
       child: PopScope(
-        canPop: !_isSubmitting,
+        canPop: !isSubmitting,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && !_isSubmitting) Navigator.pop(context);
+          if (!didPop && !isSubmitting) Navigator.pop(context);
         },
         child: Scaffold(
           backgroundColor: _screenBg,

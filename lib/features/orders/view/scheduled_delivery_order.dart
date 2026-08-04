@@ -1,5 +1,6 @@
 // Local order payload for the Scheduled On Track delivery flow only.
 import 'package:flutter/material.dart';
+import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 
 class ScheduledOrderItem {
   const ScheduledOrderItem({
@@ -14,6 +15,55 @@ class ScheduledOrderItem {
 enum ScheduledPaymentType { prepaid, cash }
 
 class ScheduledDeliveryOrder {
+  factory ScheduledDeliveryOrder.fromBoardJob(JobsBoardJob job) {
+    final earnings = job.driverEarnings > 0
+        ? (job.driverEarnings == job.driverEarnings.roundToDouble()
+            ? job.driverEarnings.toStringAsFixed(1)
+            : job.driverEarnings.toStringAsFixed(3))
+        : '0.000';
+    final eta = job.etaMin > 0 ? '~${job.etaMin} min' : '';
+    final statusLine = () {
+      final message = job.statusMessage?.trim();
+      if (message != null && message.isNotEmpty) return message;
+      final meta = job.meta?.trim();
+      if (meta != null && meta.isNotEmpty) return meta;
+      return job.arrivingLabel;
+    }();
+
+    return ScheduledDeliveryOrder(
+      orderId: job.displayOrderId,
+      vendorName: job.vendorName,
+      vendorAddress:
+          job.pickupArea.trim().isNotEmpty ? job.pickupArea.trim() : '—',
+      category: 'Scheduled',
+      customerName: 'Customer',
+      customerPhone: '',
+      customerAddress: job.dropoffAddress.trim().isNotEmpty
+          ? job.dropoffAddress.trim()
+          : (job.dropoffArea.trim().isNotEmpty ? job.dropoffArea.trim() : '—'),
+      scheduledWindow: job.scheduledWindowLabel,
+      pickupDeadlineNotice: statusLine,
+      distance: '—',
+      eta: eta.isNotEmpty ? eta : '—',
+      items: const [],
+      isFragileHighValue: false,
+      paymentType: job.isCash
+          ? ScheduledPaymentType.cash
+          : ScheduledPaymentType.prepaid,
+      cashAmount: job.isCash && job.totalAmount > 0
+          ? 'BHD ${job.totalAmount.toStringAsFixed(3)}'
+          : null,
+      earnings: earnings,
+      tip: '0.000',
+      totalDeliveryTime: eta.isNotEmpty ? eta.replaceFirst('~', '') : '—',
+      deliveryDistance: '—',
+      deliveryEta: eta.isNotEmpty ? eta : '—',
+      orderTypeLabel: 'Scheduled · Normal',
+      cardRouteLabel: job.displayRoute,
+      cardStatusLine: statusLine,
+    );
+  }
+
   const ScheduledDeliveryOrder({
     required this.orderId,
     required this.vendorName,
