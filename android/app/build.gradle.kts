@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.File
 import java.io.FileInputStream
 
 plugins {
@@ -24,7 +25,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.yjeek.yjeek_driver"
+    namespace = "bh.yjeek.driver"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -39,7 +40,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "r2a.yjeek_driver_app"
+        applicationId = "bh.yjeek.driver"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -54,7 +55,12 @@ android {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+                val storeFilePath = keystoreProperties["storeFile"] as String
+                storeFile = if (File(storeFilePath).isAbsolute) {
+                    File(storeFilePath)
+                } else {
+                    rootProject.file(storeFilePath)
+                }
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
