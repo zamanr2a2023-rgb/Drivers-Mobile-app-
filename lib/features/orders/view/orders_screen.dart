@@ -4,7 +4,9 @@ import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
+import 'package:yjeek_driver/features/orders/view/confirm_pickup_screen.dart';
 import 'package:yjeek_driver/features/orders/view/deliver_to_customer_screen.dart';
+import 'package:yjeek_driver/features/orders/view/go_to_restaurant_screen.dart';
 import 'package:yjeek_driver/features/orders/view/reject_scheduled_order_screen.dart';
 import 'package:yjeek_driver/features/orders/view/release_scheduled_order_screen.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_completed_order_detail.dart';
@@ -58,55 +60,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
   bool _showRejectScreen = false;
   bool _showDeliverToCustomer = false;
   String _activeJobId = '';
-  String _releaseOrderId = '#YJK-...52';
-  String _rejectOrderId = '#YJK-...50';
+  String _releaseOrderId = '';
+  String _releaseJobId = '';
+  String _rejectOrderId = '';
   String _rejectJobId = '';
-
-  late List<_ConfirmScheduledOrder> _confirmOrdersList;
-
-  static const _initialConfirmOrders = [
-    _ConfirmScheduledOrder(
-      id: '#YJK-...52',
-      jobId: '',
-      route: 'Lulu Express → Seef',
-      window: 'Today · 6–8 PM',
-      respondIn: 'Respond within 19 min',
-    ),
-  ];
-
-  static const _completedOrders = [
-    ScheduledCompletedOrderDetail(
-      orderId: '#YJK-...52',
-      cardRouteLabel: 'Vapeology → Adliya',
-      scheduledWindow: 'Today · 6–8 PM',
-      deliveredAtLabel: 'Delivered 1:48 PM ·',
-      vendorName: 'Vapeology',
-      vendorAddress: 'Seef · Bldg 210',
-      distance: '1.4 km',
-      eta: '~6 min',
-      categoryBadge: 'Vape · 18+',
-      isVapeRestricted: true,
-    ),
-    ScheduledCompletedOrderDetail(
-      orderId: '#YJK-...39',
-      cardRouteLabel: 'Lulu Express → Seef',
-      scheduledWindow: 'Yesterday · 6–8 PM',
-      deliveredAtLabel: 'Delivered 7:42 PM ·',
-      vendorName: 'Lulu Express',
-      vendorAddress: 'Seef Mall · Ground Floor',
-      distance: '2.1 km',
-      eta: '~8 min',
-      categoryBadge: 'Groceries',
-      isVapeRestricted: false,
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _segment = widget.initialSegment.clamp(0, 1);
-    _confirmOrdersList =
-        List<_ConfirmScheduledOrder>.from(_initialConfirmOrders);
     OrdersNavSignal.pendingSegment.addListener(_onNavSignal);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeNavSignal();
@@ -125,14 +87,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     final jobId = order.jobId.trim().isNotEmpty ? order.jobId.trim() : order.id;
     if (jobId.isEmpty || jobId.startsWith('#')) {
-      // Keep local mock behavior when no real job id is available.
-      setState(() {
-        _confirmOrdersList.removeWhere(
-          (item) => item.id == order.id && item.jobId == order.jobId,
-        );
-        _scheduledFilter = 2; // On track
-        _segment = 1;
-      });
+      AppHelpers.showSnackBar(
+        context,
+        'Missing job id for confirmation',
+        isError: true,
+      );
       return;
     }
 
@@ -141,16 +100,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     if (result != null) {
       setState(() {
-        _confirmOrdersList.removeWhere(
-          (item) =>
-              item.jobId == jobId ||
-              item.id == order.id ||
-              item.id == result.order.displayOrderNumber,
-        );
         _scheduledFilter = 2; // On track
         _segment = 1;
       });
-      context.read<OrderProvider>().loadScheduledOnTrackJobsBoard();
+      await Future.wait([
+        provider.loadScheduledRequireConfirmJobsBoard(),
+        provider.loadScheduledOnTrackJobsBoard(),
+      ]);
+      if (!mounted) return;
       AppHelpers.showSnackBar(
         context,
         result.progressLabel.isNotEmpty
@@ -163,16 +120,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final error = provider.confirmOrderError ?? 'Failed to confirm order';
     if (error.toLowerCase().contains('does not require confirmation')) {
       setState(() {
-        _confirmOrdersList.removeWhere(
-          (item) =>
-              item.jobId == jobId ||
-              item.id == order.id ||
-              item.jobId == order.jobId,
-        );
         _scheduledFilter = 2; // On track
         _segment = 1;
       });
-      context.read<OrderProvider>().loadScheduledOnTrackJobsBoard();
+      await Future.wait([
+        provider.loadScheduledRequireConfirmJobsBoard(),
+        provider.loadScheduledOnTrackJobsBoard(),
+      ]);
+      if (!mounted) return;
       AppHelpers.showSnackBar(context, 'Order is on track');
       return;
     }
@@ -206,23 +161,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
     if (provider.isAcceptingJob || provider.isDecliningJob) return;
 
     final jobId = _apiJobId(jobId: order.jobId, displayId: order.id);
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'Missing job id for accept',
+        isError: true,
+      );
+      return;
+    }
 
-    void moveToRequireConfirmation({
-      String? orderId,
-      String? acceptedJobId,
-      String? respondIn,
-    }) {
+    void moveToRequireConfirmation() {
       setState(() {
-        _confirmOrdersList.insert(
-          0,
-          _ConfirmScheduledOrder(
-            id: orderId ?? order.id,
-            jobId: acceptedJobId ?? order.jobId,
-            route: order.route,
-            window: order.window,
-            respondIn: respondIn ?? order.respondIn,
-          ),
-        );
         _scheduledFilter = 1; // Require confirmation
         _segment = 1;
         _showRejectScreen = false;
@@ -241,16 +190,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
     }
 
-    // Mock / local-only cards (no real API id).
-    if (jobId == null) {
-      provider.removeOffer(order.jobId.isNotEmpty ? order.jobId : order.id);
-      provider.removeScheduledNewJob(
-        order.jobId.isNotEmpty ? order.jobId : order.id,
-      );
-      moveToRequireConfirmation();
-      return;
-    }
-
     // Step 1 — accept API
     final result = await provider.acceptJob(jobId);
     if (!mounted) return;
@@ -264,28 +203,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
       return;
     }
 
-    // Step 2 — sync New list + counts, then route by confirm window
+    // Step 2 — sync lists from API, then route by confirm window
     await provider.loadJobOffers();
     if (!mounted) return;
-    provider.loadScheduledNewJobsBoard();
 
     if (result.requiresConfirmation) {
-      final confirmSec = result.confirmExpiresInSec;
-      moveToRequireConfirmation(
-        orderId: result.order.displayOrderNumber.isNotEmpty
-            ? result.order.displayOrderNumber
-            : order.id,
-        acceptedJobId: result.id.isNotEmpty ? result.id : jobId,
-        respondIn: confirmSec != null && confirmSec > 0
-            ? 'Respond within ${(confirmSec / 60).ceil()} min'
-            : order.respondIn,
-      );
+      moveToRequireConfirmation();
+      await provider.loadScheduledRequireConfirmJobsBoard();
     } else {
-      // No double-confirm needed — job is already on track.
       moveToOnTrack();
-      provider.loadScheduledOnTrackJobsBoard();
+      await Future.wait([
+        provider.loadScheduledNewJobsBoard(),
+        provider.loadScheduledOnTrackJobsBoard(),
+      ]);
     }
 
+    if (!mounted) return;
     AppHelpers.showSnackBar(
       context,
       result.progressLabel.isNotEmpty ? result.progressLabel : 'Job accepted',
@@ -295,15 +228,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _loadScheduledFilter(int filter) {
     final provider = context.read<OrderProvider>();
     switch (filter) {
-      case 2:
-        provider.loadScheduledOnTrackJobsBoard();
-        break;
       case 0:
         provider.loadJobOffers();
         provider.loadScheduledNewJobsBoard();
         break;
+      case 1:
+        provider.loadScheduledRequireConfirmJobsBoard();
+        break;
+      case 2:
+        provider.loadScheduledOnTrackJobsBoard();
+        break;
+      case 3:
+        provider.loadScheduledCompletedJobsBoard();
+        break;
       default:
-        // Keep counts fresh for Require confirmation / Completed chips.
         provider.loadScheduledNewJobsBoard();
         break;
     }
@@ -403,9 +341,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  void _openRelease(String orderId) {
+  void _openRelease(_ConfirmScheduledOrder order) {
     setState(() {
-      _releaseOrderId = orderId;
+      _releaseOrderId = order.id;
+      _releaseJobId = order.jobId;
       _showReleaseScreen = true;
       _showRejectScreen = false;
       _showDeliverToCustomer = false;
@@ -418,13 +357,44 @@ class _OrdersScreenState extends State<OrdersScreen> {
     setState(() => _showReleaseScreen = false);
   }
 
-  void _submitRelease(String reason, String note) {
+  Future<void> _submitRelease(String reason, String note) async {
+    final provider = context.read<OrderProvider>();
+    final jobId =
+        _apiJobId(jobId: _releaseJobId, displayId: _releaseOrderId);
+
     setState(() {
-      _confirmOrdersList.removeWhere((order) => order.id == _releaseOrderId);
       _showReleaseScreen = false;
-      _scheduledFilter = 1; // Stay on Require confirmation
+      _scheduledFilter = 1;
       _segment = 1;
     });
+
+    if (jobId == null) {
+      AppHelpers.showSnackBar(
+        context,
+        'Missing job id for release',
+        isError: true,
+      );
+      return;
+    }
+
+    // Prefer dedicated release endpoint when wired; fall back to decline.
+    final result = await provider.declineJob(
+      jobId: jobId,
+      reason: _mapDeclineReason(reason),
+      note: note.trim().isNotEmpty ? note.trim() : reason.trim(),
+    );
+    if (!mounted) return;
+
+    await provider.loadScheduledRequireConfirmJobsBoard();
+    if (!mounted) return;
+
+    AppHelpers.showSnackBar(
+      context,
+      result != null
+          ? 'Order released'
+          : (provider.declineJobError ?? 'Failed to release order'),
+      isError: result == null,
+    );
   }
 
   void _openDeliverToCustomer(String jobId) {
@@ -435,6 +405,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _showReleaseScreen = false;
       _segment = 0; // Instant
     });
+  }
+
+  /// Continue from Instant Active — open the screen that matches job status.
+  void _openActiveJob(JobsBoardJob job) {
+    if (job.isAtVendor) {
+      Navigator.pushNamed(
+        context,
+        RouteNames.confirmPickup,
+        arguments: ConfirmPickupArgs(
+          orderId: job.id,
+          restaurantName:
+              job.vendorName.trim().isNotEmpty ? job.vendorName : 'Vendor',
+        ),
+      );
+      return;
+    }
+
+    if (job.isPickupPhase) {
+      final eta = job.etaMin > 0 ? '~${job.etaMin} min' : '—';
+      Navigator.pushNamed(
+        context,
+        RouteNames.goToRestaurant,
+        arguments: GoToRestaurantArgs(
+          orderId: job.id,
+          restaurantName:
+              job.vendorName.trim().isNotEmpty ? job.vendorName : 'Vendor',
+          pickupLocation:
+              job.pickupArea.trim().isNotEmpty ? job.pickupArea : 'Pickup',
+          distance: '—',
+          estimatedTime: eta,
+        ),
+      );
+      return;
+    }
+
+    _openDeliverToCustomer(job.id);
   }
 
   void _closeDeliverToCustomer() {
@@ -539,14 +545,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
 
     final counts = ordersProvider.scheduledCounts;
+    final confirmOrders = ordersProvider.scheduledRequireConfirmJobs
+        .map(_ConfirmScheduledOrder.fromBoardJob)
+        .toList(growable: false);
     final onTrackOrders = ordersProvider.scheduledOnTrackJobs
         .map(ScheduledDeliveryOrder.fromBoardJob)
         .toList(growable: false);
+    final completedOrders = ordersProvider.scheduledCompletedJobs
+        .map(ScheduledCompletedOrderDetail.fromBoardJob)
+        .toList(growable: false);
+    final newCount = counts.newCount > 0
+        ? counts.newCount
+        : ordersProvider.offersCount;
     final scheduledFilters = [
-      'New (${ordersProvider.offersCount})',
-      'Require confirmation (${counts.requireConfirmation > 0 ? counts.requireConfirmation : _confirmOrdersList.length})',
+      'New ($newCount)',
+      'Require confirmation (${counts.requireConfirmation})',
       'On track (${counts.onTrack})',
-      'Completed (${counts.completed > 0 ? counts.completed : _completedOrders.length})',
+      'Completed (${counts.completed})',
     ];
 
     return Scaffold(
@@ -581,7 +596,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             Expanded(
               child: _segment == 0
                   ? _InstantOrdersBody(
-                      onContinue: _openDeliverToCustomer,
+                      onContinue: _openActiveJob,
                     )
                   : _ScheduledOrdersBody(
                       filters: scheduledFilters,
@@ -597,7 +612,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       newError: ordersProvider.offersError,
                       onRefreshNew: () =>
                           context.read<OrderProvider>().loadJobOffers(),
-                      confirmOrders: _confirmOrdersList,
+                      confirmOrders: confirmOrders,
+                      isLoadingConfirm:
+                          ordersProvider.isLoadingScheduledRequireConfirmBoard,
+                      confirmError:
+                          ordersProvider.scheduledRequireConfirmBoardError,
+                      onRefreshConfirm: () => context
+                          .read<OrderProvider>()
+                          .loadScheduledRequireConfirmJobsBoard(),
                       onTrackOrders: onTrackOrders,
                       isLoadingOnTrack:
                           ordersProvider.isLoadingScheduledOnTrackBoard,
@@ -606,7 +628,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           .read<OrderProvider>()
                           .loadScheduledOnTrackJobsBoard(),
                       onTrackOrderTap: _openScheduledTrack,
-                      completedOrders: _completedOrders,
+                      completedOrders: completedOrders,
+                      isLoadingCompleted:
+                          ordersProvider.isLoadingScheduledCompletedBoard,
+                      completedError:
+                          ordersProvider.scheduledCompletedBoardError,
+                      onRefreshCompleted: () => context
+                          .read<OrderProvider>()
+                          .loadScheduledCompletedJobsBoard(),
                       onCompletedOrderTap: _openCompletedOrderDetail,
                       onDoubleConfirm: _onDoubleConfirm,
                       onRelease: _openRelease,
@@ -626,7 +655,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 class _InstantOrdersBody extends StatelessWidget {
   const _InstantOrdersBody({required this.onContinue});
 
-  final ValueChanged<String> onContinue;
+  final ValueChanged<JobsBoardJob> onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -706,7 +735,7 @@ class _InstantOrdersBody extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _ActiveOrderCard(
                   job: job,
-                  onContinue: () => onContinue(job.id),
+                  onContinue: () => onContinue(job),
                 ),
               ),
             ),
@@ -813,6 +842,16 @@ class _ConfirmScheduledOrder {
     required this.respondIn,
   });
 
+  factory _ConfirmScheduledOrder.fromBoardJob(JobsBoardJob job) {
+    return _ConfirmScheduledOrder(
+      id: job.displayOrderId,
+      jobId: job.id,
+      route: job.displayRoute,
+      window: job.scheduledWindowLabel,
+      respondIn: job.respondWithinLabel,
+    );
+  }
+
   final String id;
   final String jobId;
   final String route;
@@ -830,12 +869,18 @@ class _ScheduledOrdersBody extends StatelessWidget {
     required this.newError,
     required this.onRefreshNew,
     required this.confirmOrders,
+    required this.isLoadingConfirm,
+    required this.confirmError,
+    required this.onRefreshConfirm,
     required this.onTrackOrders,
     required this.isLoadingOnTrack,
     required this.onTrackError,
     required this.onRefreshOnTrack,
     required this.onTrackOrderTap,
     required this.completedOrders,
+    required this.isLoadingCompleted,
+    required this.completedError,
+    required this.onRefreshCompleted,
     required this.onCompletedOrderTap,
     required this.onDoubleConfirm,
     required this.onRelease,
@@ -851,15 +896,21 @@ class _ScheduledOrdersBody extends StatelessWidget {
   final String? newError;
   final Future<void> Function() onRefreshNew;
   final List<_ConfirmScheduledOrder> confirmOrders;
+  final bool isLoadingConfirm;
+  final String? confirmError;
+  final Future<void> Function() onRefreshConfirm;
   final List<ScheduledDeliveryOrder> onTrackOrders;
   final bool isLoadingOnTrack;
   final String? onTrackError;
   final Future<void> Function() onRefreshOnTrack;
   final ValueChanged<ScheduledDeliveryOrder> onTrackOrderTap;
   final List<ScheduledCompletedOrderDetail> completedOrders;
+  final bool isLoadingCompleted;
+  final String? completedError;
+  final Future<void> Function() onRefreshCompleted;
   final ValueChanged<ScheduledCompletedOrderDetail> onCompletedOrderTap;
   final ValueChanged<_ConfirmScheduledOrder> onDoubleConfirm;
-  final ValueChanged<String> onRelease;
+  final ValueChanged<_ConfirmScheduledOrder> onRelease;
   final ValueChanged<_NewScheduledOrder> onAcceptNew;
   final ValueChanged<_NewScheduledOrder> onRejectNew;
 
@@ -915,25 +966,73 @@ class _ScheduledOrdersBody extends StatelessWidget {
   Widget _buildFilterList() {
     switch (selectedFilter) {
       case 1:
-        if (confirmOrders.isEmpty) {
+        if (isLoadingConfirm &&
+            confirmOrders.isEmpty &&
+            confirmError == null) {
           return const Center(
-            child: Text(
-              'No orders needing confirmation',
-              style: TextStyle(
-                fontSize: 14,
-                color: _OrdersScreenState._textMuted,
-              ),
+            child: CircularProgressIndicator(
+              color: _OrdersScreenState._green,
+              strokeWidth: 2.5,
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: confirmOrders.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) => _RequireConfirmCard(
-            data: confirmOrders[index],
-            onDoubleConfirm: () => onDoubleConfirm(confirmOrders[index]),
-            onRelease: () => onRelease(confirmOrders[index].id),
+
+        if (confirmError != null && confirmOrders.isEmpty) {
+          return RefreshIndicator(
+            color: _OrdersScreenState._green,
+            onRefresh: onRefreshConfirm,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+              children: [
+                Text(
+                  confirmError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _OrdersScreenState._textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (confirmOrders.isEmpty) {
+          return RefreshIndicator(
+            color: _OrdersScreenState._green,
+            onRefresh: onRefreshConfirm,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+              children: const [
+                Text(
+                  'No orders needing confirmation',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _OrdersScreenState._textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: _OrdersScreenState._green,
+          onRefresh: onRefreshConfirm,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: confirmOrders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _RequireConfirmCard(
+              data: confirmOrders[index],
+              onDoubleConfirm: () => onDoubleConfirm(confirmOrders[index]),
+              onRelease: () => onRelease(confirmOrders[index]),
+            ),
           ),
         );
       case 2:
@@ -1004,13 +1103,72 @@ class _ScheduledOrdersBody extends StatelessWidget {
           ),
         );
       case 3:
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: completedOrders.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) => _CompletedScheduledCard(
-            data: completedOrders[index],
-            onTap: () => onCompletedOrderTap(completedOrders[index]),
+        if (isLoadingCompleted &&
+            completedOrders.isEmpty &&
+            completedError == null) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: _OrdersScreenState._green,
+              strokeWidth: 2.5,
+            ),
+          );
+        }
+
+        if (completedError != null && completedOrders.isEmpty) {
+          return RefreshIndicator(
+            color: _OrdersScreenState._green,
+            onRefresh: onRefreshCompleted,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+              children: [
+                Text(
+                  completedError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _OrdersScreenState._textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (completedOrders.isEmpty) {
+          return RefreshIndicator(
+            color: _OrdersScreenState._green,
+            onRefresh: onRefreshCompleted,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+              children: const [
+                Text(
+                  'No completed orders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _OrdersScreenState._textMuted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: _OrdersScreenState._green,
+          onRefresh: onRefreshCompleted,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: completedOrders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _CompletedScheduledCard(
+              data: completedOrders[index],
+              onTap: () => onCompletedOrderTap(completedOrders[index]),
+            ),
           ),
         );
       case 0:

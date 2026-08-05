@@ -41,6 +41,27 @@ class DashboardService {
     );
   }
 
+  Future<void> updateLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _api.patch(
+      ApiEndpoints.driverLocation,
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+
+    if (response['success'] != true) {
+      throw ApiException(
+        response['message']?.toString().trim().isNotEmpty == true
+            ? response['message'].toString().trim()
+            : 'Failed to update location',
+      );
+    }
+  }
+
   Future<HomeDriverModel> updateDriverStatus(String status) async {
     final response = await _api.patch(
       ApiEndpoints.driverStatus,

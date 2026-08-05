@@ -38,6 +38,36 @@ class JobDetailModel {
     return sec != null && sec > 0;
   }
 
+  bool get isAtVendor {
+    final s = status.toUpperCase();
+    return s == 'AT_RESTAURANT' || s == 'AT_VENDOR';
+  }
+
+  bool get isPickupPhase {
+    switch (status.toUpperCase()) {
+      case 'ACCEPTED':
+      case 'ASSIGNED':
+      case 'DRIVER_ASSIGNED':
+      case 'GOING_TO_VENDOR':
+      case 'AT_RESTAURANT':
+      case 'AT_VENDOR':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool get canArriveAtCustomer {
+    switch (status.toUpperCase()) {
+      case 'PICKED_UP':
+      case 'ON_THE_WAY':
+      case 'IN_TRANSIT':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   String get distanceEtaLabel {
     final parts = <String>[];
     if (distanceKm > 0) {
