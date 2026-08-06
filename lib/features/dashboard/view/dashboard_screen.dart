@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
 import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -48,6 +51,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static const Color _onlineScheduledIconBg = Color(0xFFEAF9EF);
   static const Color _onlineStatBg = Color(0xFFF3F7F2);
 
+  Timer? _offerPollTimer;
+  String? _presentedOfferId;
+  bool _openingOffer = false;
+
   @override
   void initState() {
     super.initState();
@@ -57,8 +64,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   @override
+  void dispose() {
+    _offerPollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncOfferPolling(bool online) {
+    if (!online) {
+      _offerPollTimer?.cancel();
+      _offerPollTimer = null;
+      _presentedOfferId = null;
+      return;
+    }
+    if (_offerPollTimer != null) return;
+    _offerPollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollIncomingOffers(),
+    );
+    _pollIncomingOffers();
+  }
+
+  Future<void> _pollIncomingOffers() async {
+    if (!mounted || _openingOffer) return;
+    final dashboard = context.read<DashboardProvider>();
+    if (!dashboard.isOnline) return;
+
+    final orders = context.read<OrderProvider>();
+    await orders.loadJobOffers();
+    if (!mounted) return;
+
+    final offer = orders.currentOffer;
+    if (offer == null) {
+      _presentedOfferId = null;
+      return;
+    }
+    if (_presentedOfferId == offer.id) return;
+
+    final routeName = ModalRoute.of(context)?.settings.name;
+    if (routeName == RouteNames.newRequest ||
+        routeName == RouteNames.orderDeliveryNewRequest) {
+      _presentedOfferId = offer.id;
+      return;
+    }
+
+    _presentedOfferId = offer.id;
+    _openingOffer = true;
+    try {
+      await Navigator.pushNamed(context, RouteNames.newRequest);
+    } finally {
+      _openingOffer = false;
+      // Allow re-present if still offered after closing.
+      if (mounted) _presentedOfferId = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardProvider>();
+    _syncOfferPolling(dashboard.isOnline);
 
     if (dashboard.isOnline) {
       return _buildOnlineHome(context, dashboard);
@@ -437,8 +500,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: _onlineEnableOrange,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                onTap: () =>
-                    Navigator.pushNamed(context, RouteNames.newRequest),
+                onTap: dashboard.isUpdatingAutoAccept
+                    ? null
+                    : () async {
+                        final ok = await context
+                            .read<DashboardProvider>()
+                            .setAutoAcceptEnabled(true);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok
+                                  ? 'Auto-Accept enabled'
+                                  : (context
+                                          .read<DashboardProvider>()
+                                          .error ??
+                                      'Could not enable Auto-Accept'),
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
                 borderRadius: BorderRadius.circular(16),
                 child: const SizedBox(
                   width: 70,

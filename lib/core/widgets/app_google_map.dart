@@ -52,6 +52,7 @@ class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver
   String? _message;
   StreamSubscription<Position>? _positionSub;
   bool _bootstrapping = false;
+  Key _mapViewKey = UniqueKey();
 
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
@@ -66,11 +67,14 @@ class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || _bootstrapping) return;
-    if (_state == DriverMapState.permissionDenied ||
-        _state == DriverMapState.permissionRequired ||
-        _state == DriverMapState.locationDisabled) {
-      _bootstrap();
-    }
+    // Some Androids blank the platform view after Settings / background.
+    // Remount the map surface, then re-bootstrap location.
+    setState(() {
+      _controller = null;
+      _mapViewKey = UniqueKey();
+      _didInitialCameraMove = false;
+    });
+    _bootstrap();
   }
 
   @override
@@ -355,6 +359,7 @@ class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final map = GoogleMap(
+      key: _mapViewKey,
       initialCameraPosition: _initialCamera,
       myLocationEnabled: _myLocationEnabled,
       myLocationButtonEnabled: false,

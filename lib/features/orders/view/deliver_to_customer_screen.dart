@@ -8,6 +8,8 @@ import 'package:yjeek_driver/core/widgets/app_google_map.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/complete_delivery_screen.dart';
+import 'package:yjeek_driver/features/orders/view/confirm_pickup_screen.dart';
+import 'package:yjeek_driver/features/orders/view/go_to_restaurant_screen.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// “Deliver to customer” screen (Instant Active → Continue).
@@ -48,6 +50,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
       'assets/images/cash_on_delivery_icon.png';
 
   bool _showCompleteDelivery = false;
+  bool _didRedirectPickup = false;
 
   @override
   void initState() {
@@ -66,6 +69,17 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     final provider = context.read<OrderProvider>();
     if (provider.isArrivingAtCustomer) return;
 
+    final job = provider.currentJobDetail;
+    if (job != null && !job.canArriveAtCustomer) {
+      AppHelpers.showSnackBar(
+        context,
+        'Pick up the order before arriving at the customer',
+        isError: true,
+      );
+      _redirectToPickupFlow(job);
+      return;
+    }
+
     final success = await provider.arriveAtCustomer(widget.jobId);
     if (!mounted) return;
 
@@ -78,6 +92,51 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
       context,
       provider.arriveCustomerError ?? 'Failed to mark arrived at customer',
       isError: true,
+    );
+  }
+
+  void _redirectToPickupFlow(JobDetailModel job) {
+    if (!mounted || _didRedirectPickup) return;
+    _didRedirectPickup = true;
+
+    final navigator = Navigator.of(context);
+    final restaurant = job.order.vendor.name.trim().isNotEmpty
+        ? job.order.vendor.name.trim()
+        : 'Vendor';
+    final pickupLocation = job.order.vendor.area.trim().isNotEmpty
+        ? job.order.vendor.area.trim()
+        : (job.order.vendor.city.trim().isNotEmpty
+            ? job.order.vendor.city.trim()
+            : 'Pickup');
+    final eta = job.estimatedDurationMin > 0
+        ? '~${job.estimatedDurationMin} min'
+        : '—';
+    final distance = job.distanceKm > 0
+        ? '${job.distanceKm.toStringAsFixed(1)} km'
+        : '—';
+
+    widget.onBack();
+
+    if (job.isAtVendor) {
+      navigator.pushNamed(
+        RouteNames.confirmPickup,
+        arguments: ConfirmPickupArgs(
+          orderId: job.id,
+          restaurantName: restaurant,
+        ),
+      );
+      return;
+    }
+
+    navigator.pushNamed(
+      RouteNames.goToRestaurant,
+      arguments: GoToRestaurantArgs(
+        orderId: job.id,
+        restaurantName: restaurant,
+        pickupLocation: pickupLocation,
+        distance: distance,
+        estimatedTime: eta,
+      ),
     );
   }
 
@@ -107,6 +166,16 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     final isArriving = provider.isArrivingAtCustomer;
     final error = provider.jobDetailError;
     final topInset = MediaQuery.paddingOf(context).top;
+
+    if (job != null &&
+        job.id == widget.jobId &&
+        job.isPickupPhase &&
+        !_didRedirectPickup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _redirectToPickupFlow(job);
+      });
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -236,7 +305,10 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                 const SizedBox(height: 14),
                 _buildReportNavigateRow(job),
                 const SizedBox(height: 12),
-                _buildArrivedButton(isArriving: isArriving),
+                _buildArrivedButton(
+                  isArriving: isArriving,
+                  enabled: job.canArriveAtCustomer,
+                ),
               ],
             ),
           ),
@@ -588,15 +660,18 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     );
   }
 
-  Widget _buildArrivedButton({required bool isArriving}) {
+  Widget _buildArrivedButton({
+    required bool isArriving,
+    required bool enabled,
+  }) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: Material(
-        color: _headerGreen,
+        color: enabled ? _headerGreen : _headerGreen.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: isArriving ? null : _arriveAtCustomer,
+          onTap: (!enabled || isArriving) ? null : _arriveAtCustomer,
           borderRadius: BorderRadius.circular(14),
           child: Center(
             child: isArriving
@@ -608,9 +683,9 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                       color: Colors.white,
                     ),
                   )
-                : const Text(
-                    'Arrived at customer',
-                    style: TextStyle(
+                : Text(
+                    enabled ? 'Arrived at customer' : 'Pick up order first',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,

@@ -18,9 +18,11 @@ class JobsBoardCounts {
     return JobsBoardCounts(
       active: _asInt(json['active']),
       completed: _asInt(json['completed']),
-      newCount: _asInt(json['new']),
-      requireConfirmation: _asInt(json['requireConfirmation']),
-      onTrack: _asInt(json['onTrack']),
+      newCount: _asInt(json['new'] ?? json['newCount']),
+      requireConfirmation: _asInt(
+        json['requireConfirmation'] ?? json['require_confirmation'],
+      ),
+      onTrack: _asInt(json['onTrack'] ?? json['on_track']),
     );
   }
 
@@ -90,6 +92,39 @@ class JobsBoardJob {
   bool get isCash {
     final method = paymentMethod.toUpperCase();
     return method == 'CASH' || method == 'POD';
+  }
+
+  /// Driver still needs to reach / pick up at vendor.
+  bool get isPickupPhase {
+    switch (status.toUpperCase()) {
+      case 'ACCEPTED':
+      case 'ASSIGNED':
+      case 'DRIVER_ASSIGNED':
+      case 'GOING_TO_VENDOR':
+      case 'AT_RESTAURANT':
+      case 'AT_VENDOR':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool get isAtVendor {
+    final s = status.toUpperCase();
+    return s == 'AT_RESTAURANT' || s == 'AT_VENDOR';
+  }
+
+  /// Order picked up — deliver / arrive at customer.
+  bool get isDeliveryPhase {
+    switch (status.toUpperCase()) {
+      case 'PICKED_UP':
+      case 'AT_CUSTOMER':
+      case 'ON_THE_WAY':
+      case 'IN_TRANSIT':
+        return true;
+      default:
+        return false;
+    }
   }
 
   String get displayStatusLabel {
@@ -248,9 +283,14 @@ class JobsBoardJob {
   }
 
   factory JobsBoardJob.fromJson(Map<String, dynamic> json) {
-    final vendor = _asMap(json['vendor']);
+    final order = _asMap(json['order']);
+    final vendor = _asMap(json['vendor']) ?? _asMap(order?['vendor']);
+    final vendorLocation =
+        _asMap(order?['vendorLocation']) ?? _asMap(json['vendorLocation']);
+    final address = _asMap(order?['address']) ??
+        _asMap(json['address']) ??
+        _asMap(json['dropoff'] ?? json['dropoffLocation']);
     final pickup = _asMap(json['pickup'] ?? json['pickupLocation']);
-    final dropoff = _asMap(json['dropoff'] ?? json['dropoffLocation']);
     final scheduled = _asMap(json['scheduled'] ?? json['schedule']);
 
     final vendorName = _firstNonEmpty([
@@ -265,42 +305,103 @@ class JobsBoardJob {
       pickup?['zone'],
       pickup?['district'],
       pickup?['address'],
+      vendorLocation?['area'],
+      vendor?['area'],
+      vendorLocation?['addressLine1'],
+      vendorLocation?['address'],
+      vendor?['city'],
       json['pickupAddress'],
     ]);
 
     final dropoffArea = _firstNonEmpty([
       json['dropoffArea'],
-      dropoff?['area'],
-      dropoff?['zone'],
-      dropoff?['district'],
+      address?['area'],
+      address?['zone'],
+      address?['district'],
+      address?['city'],
       json['customerArea'],
     ]);
 
     final dropoffAddress = _firstNonEmpty([
       json['dropoffAddress'],
-      dropoff?['address'],
-      dropoff?['fullAddress'],
+      address?['fullAddress'],
+      address?['formattedAddress'],
+      address?['addressLine1'],
+      address?['street'],
+      address?['building'],
       dropoffArea,
     ]);
+
+    final windowStart = _parseDate(
+      order?['windowStartAt'] ??
+          order?['assignedPickupAt'] ??
+          order?['scheduledAt'] ??
+          scheduled?['windowStartAt'],
+    );
+    final windowEnd = _parseDate(
+      order?['windowEndAt'] ??
+          order?['assignedDropoffAt'] ??
+          scheduled?['windowEndAt'],
+    );
+
+    var scheduledWindow = _nullableString(
+      json['scheduledWindow'] ??
+          json['window'] ??
+          json['windowLabel'] ??
+          json['deliveryWindow'] ??
+          scheduled?['window'] ??
+          scheduled?['windowLabel'] ??
+          scheduled?['label'],
+    );
+    scheduledWindow ??= _formatScheduledWindow(windowStart, windowEnd);
+
+    final confirmExpiresInSec = _asInt(json['confirmExpiresInSec']);
+    var respondWithin = _nullableString(
+      json['respondWithin'] ??
+          json['respondIn'] ??
+          json['respondByLabel'] ??
+          json['responseWindow'] ??
+          json['expiresInLabel'] ??
+          scheduled?['respondWithin'] ??
+          scheduled?['respondIn'],
+    );
+    if (respondWithin == null && confirmExpiresInSec > 0) {
+      final mins = (confirmExpiresInSec / 60).ceil().clamp(1, 999);
+      respondWithin = 'Respond within $mins min';
+    }
+
+    final offerExpiresInSec = _asInt(json['offerExpiresInSec']);
+    if (respondWithin == null && offerExpiresInSec > 0) {
+      final mins = (offerExpiresInSec / 60).ceil().clamp(1, 999);
+      respondWithin = 'Respond within $mins min';
+    }
 
     return JobsBoardJob(
       id: json['id']?.toString() ?? json['jobId']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      orderNumber: json['orderNumber']?.toString() ??
-          json['orderId']?.toString() ??
-          '',
+      orderNumber: _firstNonEmpty([
+        order?['orderNumber'],
+        json['orderNumber'],
+        json['orderId'],
+      ]),
       vendorName: vendorName.isEmpty ? 'Vendor' : vendorName,
       pickupArea: pickupArea,
       dropoffArea: dropoffArea,
       dropoffAddress: dropoffAddress,
-      paymentMethod: json['paymentMethod']?.toString() ??
-          json['paymentType']?.toString() ??
-          '',
+      paymentMethod: _firstNonEmpty([
+        order?['paymentMethod'],
+        json['paymentMethod'],
+        json['paymentType'],
+      ]),
       driverEarnings: _asDouble(
         json['driverEarnings'] ?? json['earnings'] ?? json['payout'],
       ),
       totalAmount: _asDouble(
-        json['totalAmount'] ?? json['cashToCollect'] ?? json['orderTotal'],
+        order?['cashToCollectAmount'] ??
+            order?['totalAmount'] ??
+            json['totalAmount'] ??
+            json['cashToCollect'] ??
+            json['orderTotal'],
       ),
       etaMin: _asInt(
         json['etaMin'] ??
@@ -319,46 +420,35 @@ class JobsBoardJob {
         json['statusMessage'] ??
             json['statusLine'] ??
             json['subtitle'] ??
-            json['message'],
+            json['message'] ??
+            json['progressLabel'],
       ),
       routeLabel: _nullableString(
         json['routeLabel'] ?? json['route'] ?? json['title'],
       ),
       meta: _nullableString(json['meta'] ?? json['footer'] ?? json['detail']),
       cancelReason: _nullableString(
-        json['cancelReason'] ??
+        order?['cancelReason'] ??
+            json['cancelReason'] ??
             json['cancellationReason'] ??
             json['cancelledReason'] ??
-            json['reason'],
+            json['reason'] ??
+            json['rejectionReason'],
       ),
       completedAt: _parseDate(
         json['completedAt'] ??
             json['deliveredAt'] ??
+            order?['cancelledAt'] ??
             json['cancelledAt'] ??
             json['updatedAt'],
       ),
-      scheduledWindow: _nullableString(
-        json['scheduledWindow'] ??
-            json['window'] ??
-            json['windowLabel'] ??
-            json['deliveryWindow'] ??
-            scheduled?['window'] ??
-            scheduled?['windowLabel'] ??
-            scheduled?['label'],
-      ),
-      respondWithin: _nullableString(
-        json['respondWithin'] ??
-            json['respondIn'] ??
-            json['respondByLabel'] ??
-            json['responseWindow'] ??
-            json['expiresInLabel'] ??
-            scheduled?['respondWithin'] ??
-            scheduled?['respondIn'],
-      ),
+      scheduledWindow: scheduledWindow,
+      respondWithin: respondWithin,
       expiresAt: _parseDate(
         json['expiresAt'] ??
             json['respondBy'] ??
             json['offerExpiresAt'] ??
+            order?['driverConfirmDeadline'] ??
             scheduled?['expiresAt'] ??
             scheduled?['respondBy'],
       ),
@@ -400,6 +490,34 @@ class JobsBoardJob {
     if (value == null) return null;
     if (value is DateTime) return value;
     return DateTime.tryParse(value.toString());
+  }
+
+  static String? _formatScheduledWindow(DateTime? start, DateTime? end) {
+    if (start == null && end == null) return null;
+    if (start != null && end != null) {
+      return '${_formatDay(start)} · ${_formatClock(start)}–${_formatClock(end)}';
+    }
+    final only = start ?? end!;
+    return '${_formatDay(only)} · ${_formatClock(only)}';
+  }
+
+  static String _formatDay(DateTime value) {
+    final local = value.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(local.year, local.month, local.day);
+    if (day == today) return 'Today';
+    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    return '${local.day}/${local.month}';
+  }
+
+  static String _formatClock(DateTime value) {
+    final local = value.toLocal();
+    final hour = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    return '$h12:$minute $period';
   }
 
   static String _money(double value) => value.toStringAsFixed(3);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:yjeek_driver/features/dashboard/model/home_model.dart';
 import 'package:yjeek_driver/features/dashboard/service/dashboard_service.dart';
@@ -20,6 +22,7 @@ class DashboardProvider extends ChangeNotifier {
   String _currentLocation = 'Fetching location...';
   DriverHomeModel? _home;
   String? _error;
+  Timer? _locationHeartbeat;
 
   bool get isOnline => _isOnline;
   bool get isLoading => _isLoading;
@@ -80,6 +83,7 @@ class DashboardProvider extends ChangeNotifier {
       _home = await homeFuture;
       _currentLocation = await locationFuture;
       _isOnline = _home!.driver.isOnlineStatus;
+      _syncLocationHeartbeat();
     } on ApiException catch (e) {
       _error = e.message;
     } catch (_) {
@@ -87,6 +91,36 @@ class DashboardProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  void _syncLocationHeartbeat() {
+    if (!_isOnline) {
+      _locationHeartbeat?.cancel();
+      _locationHeartbeat = null;
+      return;
+    }
+    if (_locationHeartbeat != null) return;
+    _locationHeartbeat = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _pushCurrentLocation(),
+    );
+    _pushCurrentLocation();
+  }
+
+  Future<void> _pushCurrentLocation() async {
+    if (!_isOnline) return;
+    try {
+      final location = await _locationService.getCurrentMapLocation();
+      if (location == null) return;
+      await _dashboardService.updateLocation(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      _currentLocation =
+          '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    } catch (_) {
+      // Keep online session alive even if a single location ping fails.
     }
   }
 
@@ -120,6 +154,7 @@ class DashboardProvider extends ChangeNotifier {
       );
       _home = home;
       _isOnline = home.driver.isOnlineStatus;
+      _syncLocationHeartbeat();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -145,6 +180,7 @@ class DashboardProvider extends ChangeNotifier {
       final home = await _dashboardService.goOffline();
       _home = home;
       _isOnline = home.driver.isOnlineStatus;
+      _syncLocationHeartbeat();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -195,10 +231,17 @@ class DashboardProvider extends ChangeNotifier {
 
   void setOnline(bool value) {
     _isOnline = value;
+    _syncLocationHeartbeat();
     notifyListeners();
   }
 
   String _formatBhd(double amount) {
     return 'BHD ${amount.toStringAsFixed(3)}';
+  }
+
+  @override
+  void dispose() {
+    _locationHeartbeat?.cancel();
+    super.dispose();
   }
 }
