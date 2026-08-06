@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       child: MaterialApp(
-        title: 'Yjeek Driver',
+        title: 'Yjeek Champ',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         initialRoute: RouteNames.splash,
