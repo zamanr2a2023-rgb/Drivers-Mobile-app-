@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Yjeek Driver</string>
+	<string>Yjeek Champ</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>yjeek_driver</string>
+	<string>Yjeek Champ</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,17 +29,17 @@
 	<key>GMSApiKey</key>
 	<string>AIzaSyC7BXis0DYkbNBdzeXQV6VWPPcSj6aL-PM</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Yjeek Driver needs your location to show your position on the map and navigate deliveries.</string>
+	<string>Yjeek Champ needs your location to show your position on the map and navigate deliveries.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Yjeek Driver needs your location to show your position on the map while you are online.</string>
+	<string>Yjeek Champ needs your location to show your position on the map while you are online.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Yjeek Driver needs camera access to take your profile photo and document photos.</string>
+	<string>Yjeek Champ needs camera access to take your profile photo and document photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Yjeek Driver needs photo library access to upload your profile photo and documents.</string>
+	<string>Yjeek Champ needs photo library access to upload your profile photo and documents.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Yjeek Driver needs permission to save photos when required for your documents.</string>
+	<string>Yjeek Champ needs permission to save photos when required for your documents.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Yjeek Driver may need microphone access when capturing media with the camera.</string>
+	<string>Yjeek Champ may need microphone access when capturing media with the camera.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
