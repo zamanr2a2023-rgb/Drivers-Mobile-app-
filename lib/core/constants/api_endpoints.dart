@@ -2,11 +2,9 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-
-
 //  static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
- static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
- //static const String baseUrl = "https://api.yjeektech.com/api/v1/health"; 
+  static const String baseUrl = 'https://api.yjeektech.com/api/v1';
+  //static const String baseUrl = "https://api.yjeektech.com/api/v1/health";
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -90,8 +88,7 @@ class ApiEndpoints {
   static String jobReturnAgeRestricted(String jobId) =>
       _job(jobId, 'return-age-restricted');
   static String jobReturn(String jobId) => _job(jobId, 'return');
-  static String jobConfirmReturn(String jobId) =>
-      _job(jobId, 'confirm-return');
+  static String jobConfirmReturn(String jobId) => _job(jobId, 'confirm-return');
 
   static String jobsHistory({
     String type = 'all',
