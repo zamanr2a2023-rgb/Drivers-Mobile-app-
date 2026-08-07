@@ -41,6 +41,7 @@ class AcceptOrderScreen extends StatelessWidget {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+
                         Column(
                           children: [
                             CircleAvatar(
@@ -113,3 +114,6 @@ class AcceptOrderScreen extends StatelessWidget {
     );
   }
 }
+
+
+//jjkkjjkjkljk
