@@ -2,10 +2,11 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  
-  //static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  static const String baseUrl = 'https://api.yjeektech.com/api/v1';
-  
+
+
+//  static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
+ static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
+ //static const String baseUrl = "https://api.yjeektech.com/api/v1/health"; 
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -17,6 +18,7 @@ class ApiEndpoints {
   static const String goOnline = '/drivers/go-online';
   static const String goOffline = '/drivers/go-offline';
   static const String driverStatus = '/drivers/status';
+  static const String driverLocation = '/drivers/location';
   static const String autoAccept = '/drivers/settings/auto-accept';
   static const String driverSos = '/drivers/sos';
 
@@ -103,7 +105,7 @@ class ApiEndpoints {
       });
 
   /// Instant: section=active|completed.
-  /// Scheduled: section=new|requireConfirmation|onTrack|completed.
+  /// Scheduled: section=new|require_confirmation|on_track|completed.
   static String jobsBoard({
     required String type,
     required String section,

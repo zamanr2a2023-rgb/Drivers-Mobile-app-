@@ -31,7 +31,7 @@ class ScheduledDeliveryOrder {
     }();
 
     return ScheduledDeliveryOrder(
-      orderId: job.displayOrderId,
+      orderId: job.id,
       vendorName: job.vendorName,
       vendorAddress:
           job.pickupArea.trim().isNotEmpty ? job.pickupArea.trim() : '—',

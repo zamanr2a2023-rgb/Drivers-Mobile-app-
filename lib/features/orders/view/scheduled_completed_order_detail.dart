@@ -1,5 +1,6 @@
 // Local payload for Scheduled > Completed tab detail navigation only.
 
+import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 
 class ScheduledCompletedOrderDetail {
@@ -15,6 +16,28 @@ class ScheduledCompletedOrderDetail {
     required this.categoryBadge,
     required this.isVapeRestricted,
   });
+
+  factory ScheduledCompletedOrderDetail.fromBoardJob(JobsBoardJob job) {
+    final meta = job.completedMeta.trim();
+    final deliveredAtLabel = job.isCancelled
+        ? (meta.isNotEmpty ? meta : 'Cancelled')
+        : (meta.isNotEmpty ? 'Delivered $meta' : 'Delivered');
+    final eta = job.etaMin > 0 ? '~${job.etaMin} min' : '—';
+
+    return ScheduledCompletedOrderDetail(
+      orderId: job.displayOrderId,
+      cardRouteLabel: job.displayRoute,
+      scheduledWindow: job.scheduledWindowLabel,
+      deliveredAtLabel: deliveredAtLabel,
+      vendorName: job.vendorName,
+      vendorAddress:
+          job.pickupArea.trim().isNotEmpty ? job.pickupArea.trim() : '—',
+      distance: '—',
+      eta: eta,
+      categoryBadge: 'Scheduled',
+      isVapeRestricted: false,
+    );
+  }
 
   final String orderId;
   final String cardRouteLabel;

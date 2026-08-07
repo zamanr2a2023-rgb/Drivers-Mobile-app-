@@ -25,6 +25,8 @@ class OrderProvider extends ChangeNotifier {
   bool _isLoadingInstantBoard = false;
   bool _isLoadingScheduledNewBoard = false;
   bool _isLoadingScheduledOnTrackBoard = false;
+  bool _isLoadingScheduledRequireConfirmBoard = false;
+  bool _isLoadingScheduledCompletedBoard = false;
   bool _isLoadingJobDetail = false;
   bool _isArrivingAtCustomer = false;
   bool _isArrivingAtPickup = false;
@@ -47,6 +49,8 @@ class OrderProvider extends ChangeNotifier {
   List<JobsBoardJob> _instantCompletedJobs = const [];
   List<JobsBoardJob> _scheduledNewJobs = const [];
   List<JobsBoardJob> _scheduledOnTrackJobs = const [];
+  List<JobsBoardJob> _scheduledRequireConfirmJobs = const [];
+  List<JobsBoardJob> _scheduledCompletedJobs = const [];
   JobsBoardCounts _instantCounts = const JobsBoardCounts();
   JobsBoardCounts _scheduledCounts = const JobsBoardCounts();
   OrderModel? _currentOrder;
@@ -61,6 +65,8 @@ class OrderProvider extends ChangeNotifier {
   String? _instantBoardError;
   String? _scheduledNewBoardError;
   String? _scheduledOnTrackBoardError;
+  String? _scheduledRequireConfirmBoardError;
+  String? _scheduledCompletedBoardError;
   String? _jobDetailError;
   String? _arriveCustomerError;
   String? _arrivePickupError;
@@ -96,6 +102,10 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoadingInstantBoard => _isLoadingInstantBoard;
   bool get isLoadingScheduledNewBoard => _isLoadingScheduledNewBoard;
   bool get isLoadingScheduledOnTrackBoard => _isLoadingScheduledOnTrackBoard;
+  bool get isLoadingScheduledRequireConfirmBoard =>
+      _isLoadingScheduledRequireConfirmBoard;
+  bool get isLoadingScheduledCompletedBoard =>
+      _isLoadingScheduledCompletedBoard;
   bool get isLoadingJobDetail => _isLoadingJobDetail;
   bool get isArrivingAtCustomer => _isArrivingAtCustomer;
   bool get isArrivingAtPickup => _isArrivingAtPickup;
@@ -121,6 +131,9 @@ class OrderProvider extends ChangeNotifier {
   List<JobsBoardJob> get instantCompletedJobs => _instantCompletedJobs;
   List<JobsBoardJob> get scheduledNewJobs => _scheduledNewJobs;
   List<JobsBoardJob> get scheduledOnTrackJobs => _scheduledOnTrackJobs;
+  List<JobsBoardJob> get scheduledRequireConfirmJobs =>
+      _scheduledRequireConfirmJobs;
+  List<JobsBoardJob> get scheduledCompletedJobs => _scheduledCompletedJobs;
   JobsBoardCounts get instantCounts => _instantCounts;
   JobsBoardCounts get scheduledCounts => _scheduledCounts;
   int get scheduledNewCount => _scheduledNewJobs.length;
@@ -139,6 +152,9 @@ class OrderProvider extends ChangeNotifier {
   String? get instantBoardError => _instantBoardError;
   String? get scheduledNewBoardError => _scheduledNewBoardError;
   String? get scheduledOnTrackBoardError => _scheduledOnTrackBoardError;
+  String? get scheduledRequireConfirmBoardError =>
+      _scheduledRequireConfirmBoardError;
+  String? get scheduledCompletedBoardError => _scheduledCompletedBoardError;
   String? get jobDetailError => _jobDetailError;
   String? get arriveCustomerError => _arriveCustomerError;
   String? get arrivePickupError => _arrivePickupError;
@@ -234,22 +250,30 @@ class OrderProvider extends ChangeNotifier {
 
     try {
       final results = await Future.wait([
-        _orderService.getActiveJob(),
-        _orderService.getJobsHistory(
-          type: 'all',
-          includeCancelled: true,
+        _orderService.getJobsBoard(
+          type: 'instant',
+          section: 'active',
+          limit: 20,
+        ),
+        _orderService.getJobsBoard(
+          type: 'instant',
+          section: 'completed',
+          limit: 20,
         ),
       ]);
 
-      final activeJob = results[0] as JobsBoardJob?;
-      final history = results[1] as JobsHistoryData;
+      final active = results[0];
+      final completed = results[1];
 
-      _instantActiveJobs =
-          activeJob == null ? const [] : <JobsBoardJob>[activeJob];
-      _instantCompletedJobs = history.jobs;
+      _instantActiveJobs = active.jobs;
+      _instantCompletedJobs = completed.jobs;
       _instantCounts = JobsBoardCounts(
-        active: activeJob == null ? 0 : 1,
-        completed: history.count,
+        active: active.counts.active > 0
+            ? active.counts.active
+            : active.jobs.length,
+        completed: completed.counts.completed > 0
+            ? completed.counts.completed
+            : completed.jobs.length,
       );
     } on ApiException catch (e) {
       _instantBoardError = e.message;
@@ -294,46 +318,81 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  /// `GET /drivers/jobs/board?type=scheduled&section=onTrack&limit=20`
+  /// `GET /drivers/jobs/board?type=scheduled&section=require_confirmation`
+  Future<void> loadScheduledRequireConfirmJobsBoard() async {
+    _isLoadingScheduledRequireConfirmBoard = true;
+    _scheduledRequireConfirmBoardError = null;
+    notifyListeners();
+
+    try {
+      final data = await _orderService.getJobsBoard(
+        type: 'scheduled',
+        section: 'require_confirmation',
+        limit: 20,
+      );
+      _scheduledRequireConfirmJobs = data.jobs;
+      _scheduledCounts = data.counts;
+    } on ApiException catch (e) {
+      _scheduledRequireConfirmBoardError = e.message;
+      _scheduledRequireConfirmJobs = const [];
+    } catch (_) {
+      _scheduledRequireConfirmBoardError =
+          'Failed to load confirmation orders';
+      _scheduledRequireConfirmJobs = const [];
+    } finally {
+      _isLoadingScheduledRequireConfirmBoard = false;
+      notifyListeners();
+    }
+  }
+
+  /// `GET /drivers/jobs/board?type=scheduled&section=on_track&limit=20`
   Future<void> loadScheduledOnTrackJobsBoard() async {
     _isLoadingScheduledOnTrackBoard = true;
     _scheduledOnTrackBoardError = null;
     notifyListeners();
 
     try {
-      var data = await _orderService.getJobsBoard(
+      final data = await _orderService.getJobsBoard(
         type: 'scheduled',
-        section: 'onTrack',
+        section: 'on_track',
         limit: 20,
       );
-      // If camelCase returns counts but no jobs, retry snake_case section.
-      if (data.jobs.isEmpty && data.counts.onTrack > 0) {
-        data = await _orderService.getJobsBoard(
-          type: 'scheduled',
-          section: 'on_track',
-          limit: 20,
-        );
-      }
       _scheduledOnTrackJobs = data.jobs;
       _scheduledCounts = data.counts;
-    } on ApiException catch (_) {
-      try {
-        final data = await _orderService.getJobsBoard(
-          type: 'scheduled',
-          section: 'on_track',
-          limit: 20,
-        );
-        _scheduledOnTrackJobs = data.jobs;
-        _scheduledCounts = data.counts;
-      } on ApiException catch (e) {
-        _scheduledOnTrackBoardError = e.message;
-        _scheduledOnTrackJobs = const [];
-      }
+    } on ApiException catch (e) {
+      _scheduledOnTrackBoardError = e.message;
+      _scheduledOnTrackJobs = const [];
     } catch (_) {
       _scheduledOnTrackBoardError = 'Failed to load on-track orders';
       _scheduledOnTrackJobs = const [];
     } finally {
       _isLoadingScheduledOnTrackBoard = false;
+      notifyListeners();
+    }
+  }
+
+  /// `GET /drivers/jobs/board?type=scheduled&section=completed&limit=20`
+  Future<void> loadScheduledCompletedJobsBoard() async {
+    _isLoadingScheduledCompletedBoard = true;
+    _scheduledCompletedBoardError = null;
+    notifyListeners();
+
+    try {
+      final data = await _orderService.getJobsBoard(
+        type: 'scheduled',
+        section: 'completed',
+        limit: 20,
+      );
+      _scheduledCompletedJobs = data.jobs;
+      _scheduledCounts = data.counts;
+    } on ApiException catch (e) {
+      _scheduledCompletedBoardError = e.message;
+      _scheduledCompletedJobs = const [];
+    } catch (_) {
+      _scheduledCompletedBoardError = 'Failed to load completed orders';
+      _scheduledCompletedJobs = const [];
+    } finally {
+      _isLoadingScheduledCompletedBoard = false;
       notifyListeners();
     }
   }
