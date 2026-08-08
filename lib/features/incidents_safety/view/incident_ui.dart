@@ -30,7 +30,7 @@ class IncidentContextArgs {
     this.customerName = 'Sara A.',
     this.area = 'Adliya',
     this.address = 'Adliya · Bldg 23, Road 2825, Flat 82',
-    this.pin = 'Pin: 26.2361, 50.5876',
+    this.pin = 'Pin: 26.22051, 50.58472',
   });
 
   final String orderId;

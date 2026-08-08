@@ -1,7 +1,12 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-/// Bahrain fallback for map camera only — never treat as live driver data.
-const LatLng kBahrainFallbackLatLng = LatLng(26.2235, 50.5876);
+/// Default driver pin (Shaikh Isa Ave, Manama).
+const LatLng kBahrainFallbackLatLng =
+    LatLng(26.220510224348875, 50.58472445399525);
+
+/// When true, LocationService always reports [kBahrainFallbackLatLng]
+/// instead of device GPS (useful while testing outside Bahrain).
+const bool kUseFixedDriverLocation = true;
 
 enum MapLocationKind { driver, pickup, dropoff, other }
 

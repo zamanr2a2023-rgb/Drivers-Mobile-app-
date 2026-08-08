@@ -432,7 +432,7 @@ class AppRoutes {
         customerName: '${args['customerName'] ?? 'Sara A.'}',
         area: '${args['area'] ?? 'Adliya'}',
         address: '${args['address'] ?? 'Adliya · Bldg 23, Road 2825, Flat 82'}',
-        pin: '${args['pin'] ?? 'Pin: 26.2361, 50.5876'}',
+        pin: '${args['pin'] ?? 'Pin: 26.22051, 50.58472'}',
       );
     }
     return const IncidentContextArgs();
