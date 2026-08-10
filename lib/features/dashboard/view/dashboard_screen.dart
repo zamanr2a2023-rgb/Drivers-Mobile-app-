@@ -136,87 +136,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-<<<<<<< HEAD
-          child: RefreshIndicator(
-            color: _buttonGreen,
-            onRefresh: () => context.read<DashboardProvider>().loadDashboard(),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Fit content to viewport — map absorbs remaining height.
-                const headerBlock = 52.0;
-                const bannerBlock = 60.0;
-                const bottomBlock = 248.0;
-                final mapHeight = (constraints.maxHeight -
-                        headerBlock -
-                        bannerBlock -
-                        bottomBlock)
-                    .clamp(200.0, 480.0);
-
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints:
-                        BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(context, dashboard),
-                        const SizedBox(height: 12),
-                        _buildScheduledBanner(context, dashboard),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: mapHeight,
-                          width: double.infinity,
-                          child: const AppGoogleMap(),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "You're offline",
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: _textDark,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Go online to start receiving delivery requests near you.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: _subtitleColor,
-                                  height: 1.35,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              _buildStatsRow(dashboard),
-                              if (dashboard.hasOutstandingPodCash) ...[
-                                const SizedBox(height: 14),
-                                _buildPodCashWarning(dashboard),
-                              ],
-                              const SizedBox(height: 14),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: dashboard.isLoading
-                                      ? null
-                                      : () => _onGoOnlinePressed(context),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _buttonGreen,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shadowColor: Colors.transparent,
-                                    disabledBackgroundColor:
-                                        _buttonGreen.withValues(alpha: 0.6),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-=======
           // Same layout as online home: GoogleMap must stay outside scrollables
           // or Android emulator / Platform Views show blank tiles (Google logo only).
           child: Column(
@@ -253,6 +172,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 14),
                     _buildStatsRow(dashboard),
+                    if (dashboard.hasOutstandingPodCash) ...[
+                      const SizedBox(height: 14),
+                      _buildPodCashWarning(dashboard),
+                    ],
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
@@ -260,61 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: ElevatedButton(
                         onPressed: dashboard.isLoading
                             ? null
-                            : () async {
-                                final ok = await context
-                                    .read<DashboardProvider>()
-                                    .toggleOnlineStatus();
-                                if (!context.mounted || ok) return;
-                                final message = context
-                                        .read<DashboardProvider>()
-                                        .error
-                                        ?.trim();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      (message != null && message.isNotEmpty)
-                                          ? message
-                                          : 'Could not go online. Please try again.',
->>>>>>> 50174126d1e162d24569e0e15c878358ce509cb2
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-<<<<<<< HEAD
-                                  child: dashboard.isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.bolt_rounded,
-                                              color: Colors.white,
-                                              size: 22,
-                                            ),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Go online',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                ),
-                              ),
-                            ],
-=======
-                                );
-                              },
+                            : () => _onGoOnlinePressed(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _buttonGreen,
                           foregroundColor: Colors.white,
@@ -324,28 +193,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _buttonGreen.withValues(alpha: 0.6),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
->>>>>>> 50174126d1e162d24569e0e15c878358ce509cb2
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.bolt_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Go online',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                        child: dashboard.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.bolt_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Go online',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
