@@ -100,11 +100,14 @@ class HomeDriverModel {
   }
 
   bool get isOnlineStatus {
-    switch (status.toUpperCase()) {
+    switch (status.toUpperCase().replaceAll(' ', '_')) {
       case 'ONLINE':
       case 'BUSY':
       case 'AVAILABLE':
       case 'WAITING':
+      case 'ON_DUTY':
+      case 'ACTIVE':
+      case 'IDLE':
         return true;
       default:
         return false;

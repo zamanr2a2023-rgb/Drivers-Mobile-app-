@@ -172,6 +172,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 14),
                     _buildStatsRow(dashboard),
+                    if (dashboard.hasOutstandingPodCash) ...[
+                      const SizedBox(height: 14),
+                      _buildPodCashWarning(dashboard),
+                    ],
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,
@@ -179,26 +183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: ElevatedButton(
                         onPressed: dashboard.isLoading
                             ? null
-                            : () async {
-                                final ok = await context
-                                    .read<DashboardProvider>()
-                                    .toggleOnlineStatus();
-                                if (!context.mounted || ok) return;
-                                final message = context
-                                        .read<DashboardProvider>()
-                                        .error
-                                        ?.trim();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      (message != null && message.isNotEmpty)
-                                          ? message
-                                          : 'Could not go online. Please try again.',
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
+                            : () => _onGoOnlinePressed(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _buttonGreen,
                           foregroundColor: Colors.white,
@@ -210,25 +195,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.bolt_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Go online',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                        child: dashboard.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.bolt_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Go online',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
@@ -236,6 +230,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onGoOnlinePressed(BuildContext context) async {
+    final provider = context.read<DashboardProvider>();
+    final ok = await provider.toggleOnlineStatus();
+    if (!context.mounted) return;
+    if (ok) return;
+
+    final message = provider.error ?? 'Failed to go online';
+    if (_isPodReconcileBlock(message)) {
+      await _showPodReconcileDialog(context, provider, message);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  bool _isPodReconcileBlock(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('reconcile') ||
+        lower.contains('outstanding pod') ||
+        lower.contains('pod cash') ||
+        lower.contains('cod to settle');
+  }
+
+  Future<void> _showPodReconcileDialog(
+    BuildContext context,
+    DashboardProvider provider,
+    String message,
+  ) {
+    final amount = provider.hasOutstandingPodCash
+        ? provider.pendingCashCollectedLabel
+        : null;
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Can't go online"),
+        content: Text(
+          amount == null
+              ? '$message\n\nHand over / settle collected POD cash with ops, then try again.'
+              : '$message\n\nOutstanding POD cash: $amount\n\nSettle this with ops, then try Go online again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPodCashWarning(DashboardProvider dashboard) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF2D9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFD47D)),
+      ),
+      child: Text(
+        'Outstanding POD cash: ${dashboard.pendingCashCollectedLabel}. '
+        'Reconcile with ops before going online.',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF9A6A1E),
+          height: 1.35,
         ),
       ),
     );
@@ -705,9 +776,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onPressed: dashboard.isLoading
                   ? null
                   : () async {
-                      await context
-                          .read<DashboardProvider>()
-                          .toggleOnlineStatus();
+                      final provider = context.read<DashboardProvider>();
+                      final ok = await provider.toggleOnlineStatus();
+                      if (!context.mounted) return;
+                      if (!ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              provider.error ?? 'Failed to go offline',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
               style: OutlinedButton.styleFrom(
                 backgroundColor: _onlineBg,
