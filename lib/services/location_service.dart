@@ -3,14 +3,24 @@ import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:yjeek_driver/core/models/map_location.dart';
 
 /// Real device location via Geolocator + permission_handler.
+/// When [kUseFixedDriverLocation] is true, always returns the Bahrain default.
 class LocationService {
   static Future<ph.PermissionStatus>? _permissionRequest;
 
+  MapLocation get _fixedDriverLocation => MapLocation(
+        latitude: kBahrainFallbackLatLng.latitude,
+        longitude: kBahrainFallbackLatLng.longitude,
+        kind: MapLocationKind.driver,
+        label: 'You',
+      );
+
   Future<bool> isLocationServiceEnabled() {
+    if (kUseFixedDriverLocation) return Future.value(true);
     return Geolocator.isLocationServiceEnabled();
   }
 
   Future<bool> hasLocationPermission() async {
+    if (kUseFixedDriverLocation) return true;
     final permission = await Geolocator.checkPermission();
     return permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always;
@@ -20,6 +30,8 @@ class LocationService {
   /// call [openAppSettings] only from an explicit user action (e.g. Retry).
   /// Concurrent callers share one in-flight request (iOS forbids parallel asks).
   Future<ph.PermissionStatus> requestLocationPermission() async {
+    if (kUseFixedDriverLocation) return ph.PermissionStatus.granted;
+
     final existing = _permissionRequest;
     if (existing != null) return existing;
 
@@ -45,6 +57,8 @@ class LocationService {
   Future<bool> openAppSettings() => ph.openAppSettings();
 
   Future<MapLocation?> getCurrentMapLocation() async {
+    if (kUseFixedDriverLocation) return _fixedDriverLocation;
+
     final serviceEnabled = await isLocationServiceEnabled();
     if (!serviceEnabled) return null;
 
@@ -80,6 +94,24 @@ class LocationService {
   Stream<Position> positionStream({
     int distanceFilterMeters = 15,
   }) {
+    if (kUseFixedDriverLocation) {
+      final fixed = _fixedDriverLocation;
+      return Stream.value(
+        Position(
+          latitude: fixed.latitude,
+          longitude: fixed.longitude,
+          timestamp: DateTime.now(),
+          accuracy: 1,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        ),
+      );
+    }
+
     return Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: LocationAccuracy.high,

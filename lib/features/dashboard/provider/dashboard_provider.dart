@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:yjeek_driver/features/dashboard/model/home_model.dart';
 import 'package:yjeek_driver/features/dashboard/service/dashboard_service.dart';
 import 'package:yjeek_driver/services/api_service.dart';
@@ -58,6 +59,13 @@ class DashboardProvider extends ChangeNotifier {
   double get walletBalance => _home?.wallet.balance ?? 0;
 
   String get walletBalanceLabel => _formatBhd(walletBalance);
+
+  double get pendingCashCollected =>
+      _home?.wallet.pendingCashCollected ?? 0;
+
+  String get pendingCashCollectedLabel => _formatBhd(pendingCashCollected);
+
+  bool get hasOutstandingPodCash => pendingCashCollected > 0;
 
   bool get isAutoAcceptEnabled => _home?.driver.isAutoAcceptEnabled ?? false;
 
@@ -124,13 +132,12 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleOnlineStatus() async {
+  Future<bool> toggleOnlineStatus() async {
     if (_isOnline) {
-      await goOffline();
-      return;
+      return goOffline();
     }
 
-    await goOnline();
+    return goOnline();
   }
 
   Future<bool> goOnline() async {
@@ -139,13 +146,33 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final serviceEnabled =
+          await _locationService.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw ApiException(
+          'Turn on Location Services, then try Go online again',
+        );
+      }
+
       var location = await _locationService.getCurrentMapLocation();
       if (location == null) {
-        await _locationService.requestLocationPermission();
+        final permission = await _locationService.requestLocationPermission();
+        final granted = permission == ph.PermissionStatus.granted ||
+            permission == ph.PermissionStatus.limited ||
+            permission == ph.PermissionStatus.provisional;
+        if (!granted) {
+          throw ApiException(
+            permission == ph.PermissionStatus.permanentlyDenied
+                ? 'Location permission is required. Enable it in Settings.'
+                : 'Location permission is required to go online',
+          );
+        }
         location = await _locationService.getCurrentMapLocation();
       }
       if (location == null) {
-        throw ApiException('Location is required to go online');
+        throw ApiException(
+          'Could not get your GPS location. Try again outdoors or wait a moment.',
+        );
       }
 
       final home = await _dashboardService.goOnline(
@@ -153,7 +180,10 @@ class DashboardProvider extends ChangeNotifier {
         longitude: location.longitude,
       );
       _home = home;
-      _isOnline = home.driver.isOnlineStatus;
+      // Go-online API succeeded — show online UI even if status string differs.
+      _isOnline = true;
+      _currentLocation =
+          '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
       _syncLocationHeartbeat();
       _isLoading = false;
       notifyListeners();
@@ -179,7 +209,7 @@ class DashboardProvider extends ChangeNotifier {
     try {
       final home = await _dashboardService.goOffline();
       _home = home;
-      _isOnline = home.driver.isOnlineStatus;
+      _isOnline = false;
       _syncLocationHeartbeat();
       _isLoading = false;
       notifyListeners();
