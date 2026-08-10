@@ -124,13 +124,12 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleOnlineStatus() async {
+  Future<bool> toggleOnlineStatus() async {
     if (_isOnline) {
-      await goOffline();
-      return;
+      return goOffline();
     }
 
-    await goOnline();
+    return goOnline();
   }
 
   Future<bool> goOnline() async {
