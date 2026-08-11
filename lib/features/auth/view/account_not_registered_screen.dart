@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 class AccountNotRegisteredScreen extends StatelessWidget {
-  const AccountNotRegisteredScreen({super.key});
+  const AccountNotRegisteredScreen({
+    super.key,
+    this.phoneDisplay,
+  });
+
+  /// Formatted phone shown in the error copy, e.g. `+973 3311 2233`.
+  final String? phoneDisplay;
 
   static const Color _textDark = Color(0xFF1E1E1E);
   static const Color _descriptionColor = Color(0xFF7A7A7A);
@@ -24,9 +33,14 @@ class AccountNotRegisteredScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final phoneDisplay =
-        ModalRoute.of(context)?.settings.arguments as String? ??
-            _defaultPhoneDisplay;
+    context.watch<SettingsProvider>();
+    final resolvedPhone = () {
+      final fromCtor = phoneDisplay?.trim();
+      if (fromCtor != null && fromCtor.isNotEmpty) return fromCtor;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String && args.trim().isNotEmpty) return args.trim();
+      return _defaultPhoneDisplay;
+    }();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -83,9 +97,9 @@ class AccountNotRegisteredScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Number not registered',
-                      style: TextStyle(
+                    Text(
+                      L10n.tr('Number not registered'),
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: _textDark,
@@ -96,7 +110,7 @@ class AccountNotRegisteredScreen extends StatelessWidget {
                     SizedBox(
                       width: 310,
                       child: Text(
-                        '$phoneDisplay isn\'t registered as a Yjeek champ. Please check the number, or apply to drive with Yjeek.',
+                        '$resolvedPhone ${L10n.tr("isn't registered as a Yjeek champ. Please check the number, or apply to drive with Yjeek.")}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -119,9 +133,9 @@ class AccountNotRegisteredScreen extends StatelessWidget {
                           color: _infoBoxBg,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          '• Already applied? Your account may still be under review',
-                          style: TextStyle(
+                        child: Text(
+                          '• ${L10n.tr('Already applied? Your account may still be under review')}',
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: _infoTextColor,
@@ -150,9 +164,9 @@ class AccountNotRegisteredScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(26),
                             ),
                           ),
-                          child: const Text(
-                            'Try another number',
-                            style: TextStyle(
+                          child: Text(
+                            L10n.tr('Try another number'),
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: _textDark,

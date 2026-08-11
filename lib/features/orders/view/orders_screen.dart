@@ -11,6 +11,8 @@ import 'package:yjeek_driver/features/orders/view/reject_scheduled_order_screen.
 import 'package:yjeek_driver/features/orders/view/release_scheduled_order_screen.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_completed_order_detail.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -508,6 +510,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final ordersProvider = context.watch<OrderProvider>();
 
     if (_showDeliverToCustomer) {
@@ -558,10 +561,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ? counts.newCount
         : ordersProvider.offersCount;
     final scheduledFilters = [
-      'New ($newCount)',
-      'Require confirmation (${counts.requireConfirmation})',
-      'On track (${counts.onTrack})',
-      'Completed (${counts.completed})',
+      '${L10n.tr('New')} ($newCount)',
+      '${L10n.tr('Require confirmation')} (${counts.requireConfirmation})',
+      '${L10n.tr('On track')} (${counts.onTrack})',
+      '${L10n.tr('Completed')} (${counts.completed})',
     ];
 
     return Scaffold(
@@ -575,9 +578,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Orders',
-                    style: TextStyle(
+                  Text(
+                    L10n.tr('Orders'),
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _textPrimary,
@@ -694,7 +697,7 @@ class _InstantOrdersBody extends StatelessWidget {
             child: TextButton(
               onPressed: () =>
                   context.read<OrderProvider>().loadInstantJobsBoard(),
-              child: const Text('Retry'),
+              child: Text(L10n.tr('Retry')),
             ),
           ),
         ],
@@ -708,9 +711,9 @@ class _InstantOrdersBody extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
         children: [
-          const Text(
-            'Active',
-            style: TextStyle(
+          Text(
+            L10n.tr('Active'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: _OrdersScreenState._textPrimary,
@@ -718,11 +721,11 @@ class _InstantOrdersBody extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (activeJobs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
               child: Text(
-                'No active orders',
-                style: TextStyle(
+                L10n.tr('No active orders'),
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: _OrdersScreenState._textMuted,
@@ -740,9 +743,9 @@ class _InstantOrdersBody extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 12),
-          const Text(
-            'Completed',
-            style: TextStyle(
+          Text(
+            L10n.tr('Completed'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: _OrdersScreenState._textPrimary,
@@ -750,11 +753,11 @@ class _InstantOrdersBody extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (completedJobs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
               child: Text(
-                'No completed orders',
-                style: TextStyle(
+                L10n.tr('No completed orders'),
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: _OrdersScreenState._textMuted,
@@ -1006,11 +1009,11 @@ class _ScheduledOrdersBody extends StatelessWidget {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-              children: const [
+              children: [
                 Text(
-                  'No orders needing confirmation',
+                  L10n.tr('No orders needing confirmation'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: _OrdersScreenState._textMuted,
                   ),
@@ -1074,11 +1077,11 @@ class _ScheduledOrdersBody extends StatelessWidget {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-              children: const [
+              children: [
                 Text(
-                  'No on-track orders',
+                  L10n.tr('No on-track orders'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: _OrdersScreenState._textMuted,
                   ),
@@ -1143,11 +1146,11 @@ class _ScheduledOrdersBody extends StatelessWidget {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-              children: const [
+              children: [
                 Text(
-                  'No completed orders',
+                  L10n.tr('No completed orders'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: _OrdersScreenState._textMuted,
                   ),
@@ -1200,7 +1203,7 @@ class _ScheduledOrdersBody extends StatelessWidget {
               Center(
                 child: TextButton(
                   onPressed: onRefreshNew,
-                  child: const Text('Retry'),
+                  child: Text(L10n.tr('Retry')),
                 ),
               ),
             ],
@@ -1214,11 +1217,11 @@ class _ScheduledOrdersBody extends StatelessWidget {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-              children: const [
+              children: [
                 Text(
-                  'No new offers',
+                  L10n.tr('No new offers'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: _OrdersScreenState._textMuted,
                   ),
@@ -1809,14 +1812,14 @@ class _SegmentedTabs extends StatelessWidget {
         children: [
           Expanded(
             child: _SegmentTab(
-              label: 'Instant',
+              label: L10n.tr('Instant'),
               selected: selectedIndex == 0,
               onTap: () => onChanged(0),
             ),
           ),
           Expanded(
             child: _SegmentTab(
-              label: 'Scheduled',
+              label: L10n.tr('Scheduled'),
               selected: selectedIndex == 1,
               onTap: () => onChanged(1),
             ),

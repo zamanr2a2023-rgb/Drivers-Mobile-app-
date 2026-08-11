@@ -8,6 +8,8 @@ import 'package:yjeek_driver/core/widgets/app_loader.dart';
 import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
 import 'package:yjeek_driver/core/widgets/status_badge.dart';
 import 'package:yjeek_driver/features/earnings/provider/earnings_provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -27,10 +29,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final provider = context.watch<EarningsProvider>();
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Transaction History'),
+      appBar: CustomAppBar(title: L10n.tr('Transaction History')),
       body: provider.isLoading
           ? const AppLoader()
           : ListView.builder(

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:yjeek_driver/features/dashboard/model/home_model.dart';
 import 'package:yjeek_driver/features/dashboard/service/dashboard_service.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/services/location_service.dart';
 
@@ -28,13 +29,17 @@ class DashboardProvider extends ChangeNotifier {
   bool get isOnline => _isOnline;
   bool get isLoading => _isLoading;
   bool get isUpdatingAutoAccept => _isUpdatingAutoAccept;
-  String get currentLocation => _currentLocation;
+  String get currentLocation =>
+      _currentLocation == 'Fetching location...'
+          ? L10n.tr('Fetching location...')
+          : _currentLocation;
   DriverHomeModel? get home => _home;
   String? get error => _error;
 
-  String get driverName => _home?.driver.displayName ?? 'Driver';
+  String get driverName => _home?.driver.displayName ?? L10n.tr('Driver');
 
-  String get statusLabel => _isOnline ? "You're online" : 'Offline';
+  String get statusLabel =>
+      _isOnline ? L10n.tr("You're online") : L10n.tr('Offline');
 
   int get tripsToday => _home?.today.ordersCount ?? 0;
 
@@ -49,8 +54,10 @@ class DashboardProvider extends ChangeNotifier {
 
   int get scheduledOrdersCount => _home?.scheduledOrdersCount ?? 0;
 
-  String get scheduledOrdersLabel =>
-      '$scheduledOrdersCount scheduled orders today';
+  String get scheduledOrdersLabel => L10n.trParams(
+        '{count} scheduled orders today',
+        {'count': '$scheduledOrdersCount'},
+      );
 
   int get unreadNotificationsCount => _home?.unreadNotificationsCount ?? 0;
 
@@ -69,12 +76,13 @@ class DashboardProvider extends ChangeNotifier {
 
   bool get isAutoAcceptEnabled => _home?.driver.isAutoAcceptEnabled ?? false;
 
-  String get autoAcceptTitle =>
-      isAutoAcceptEnabled ? 'Auto-Accept is on' : 'Auto-Accept is off';
+  String get autoAcceptTitle => isAutoAcceptEnabled
+      ? L10n.tr('Auto-Accept is on')
+      : L10n.tr('Auto-Accept is off');
 
   String get autoAcceptSubtitle => isAutoAcceptEnabled
-      ? 'Orders will be accepted automatically'
-      : 'Turn it on to get orders automatically';
+      ? L10n.tr('Orders will be accepted automatically')
+      : L10n.tr('Turn it on to get orders automatically');
 
   // Kept for existing callers that used mock fields.
   int get completedOrders => tripsToday;
@@ -95,7 +103,7 @@ class DashboardProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _error = e.message;
     } catch (_) {
-      _error = 'Failed to load home';
+      _error = L10n.tr('Failed to load home');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -150,7 +158,7 @@ class DashboardProvider extends ChangeNotifier {
           await _locationService.isLocationServiceEnabled();
       if (!serviceEnabled) {
         throw ApiException(
-          'Turn on Location Services, then try Go online again',
+          L10n.tr('Turn on Location Services, then try Go online again'),
         );
       }
 
@@ -163,15 +171,19 @@ class DashboardProvider extends ChangeNotifier {
         if (!granted) {
           throw ApiException(
             permission == ph.PermissionStatus.permanentlyDenied
-                ? 'Location permission is required. Enable it in Settings.'
-                : 'Location permission is required to go online',
+                ? L10n.tr(
+                    'Location permission is required. Enable it in Settings.',
+                  )
+                : L10n.tr('Location permission is required to go online'),
           );
         }
         location = await _locationService.getCurrentMapLocation();
       }
       if (location == null) {
         throw ApiException(
-          'Could not get your GPS location. Try again outdoors or wait a moment.',
+          L10n.tr(
+            'Could not get your GPS location. Try again outdoors or wait a moment.',
+          ),
         );
       }
 
@@ -194,7 +206,7 @@ class DashboardProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (_) {
-      _error = 'Failed to go online';
+      _error = L10n.tr('Failed to go online');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -220,7 +232,7 @@ class DashboardProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (_) {
-      _error = 'Failed to go offline';
+      _error = L10n.tr('Failed to go offline');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -252,7 +264,7 @@ class DashboardProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (_) {
-      _error = 'Failed to update auto-accept';
+      _error = L10n.tr('Failed to update auto-accept');
       _isUpdatingAutoAccept = false;
       notifyListeners();
       return false;

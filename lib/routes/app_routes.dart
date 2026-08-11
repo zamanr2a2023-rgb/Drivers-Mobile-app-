@@ -4,6 +4,7 @@ import 'package:yjeek_driver/features/auth/model/otp_screen_args.dart';
 import 'package:yjeek_driver/features/auth/view/account_not_registered_screen.dart';
 import 'package:yjeek_driver/features/auth/view/login_screen.dart';
 import 'package:yjeek_driver/features/auth/view/otp_screen.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/features/chat/view/dispatch_chat_screen.dart';
 import 'package:yjeek_driver/features/dashboard/view/cant_go_online_screen.dart';
 import 'package:yjeek_driver/features/dashboard/view/dashboard_screen.dart';
@@ -111,7 +112,17 @@ class AppRoutes {
         }
         return _page(OtpScreen(phoneDisplay: args as String?));
       case RouteNames.accountNotRegistered:
-        return _page(const AccountNotRegisteredScreen());
+        final phoneDisplay = settings.arguments is String
+            ? (settings.arguments as String).trim()
+            : null;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => AccountNotRegisteredScreen(
+            phoneDisplay: (phoneDisplay != null && phoneDisplay.isNotEmpty)
+                ? phoneDisplay
+                : null,
+          ),
+        );
       case RouteNames.mainNavigation:
         return _page(const MainNavigationScreen());
       case RouteNames.dashboard:
@@ -448,8 +459,14 @@ class AppRoutes {
     return null;
   }
 
-  static MaterialPageRoute<dynamic> _page(Widget child) {
-    return MaterialPageRoute(builder: (_) => child);
+  static MaterialPageRoute<dynamic> _page(
+    Widget child, {
+    RouteSettings? settings,
+  }) {
+    return MaterialPageRoute(
+      settings: settings,
+      builder: (_) => child,
+    );
   }
 
   static MaterialPageRoute<dynamic> _scheduledOrderPage(
@@ -486,7 +503,7 @@ class UnknownRouteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Page Not Found')),
+      appBar: AppBar(title: Text(L10n.tr('Page Not Found'))),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -494,7 +511,7 @@ class UnknownRouteScreen extends StatelessWidget {
             Icon(Icons.error_outline,
                 size: 64, color: AppColors.textLight.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
-            const Text('The page you are looking for does not exist.'),
+            Text(L10n.tr('The page you are looking for does not exist.')),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.pushNamedAndRemoveUntil(
@@ -502,7 +519,7 @@ class UnknownRouteScreen extends StatelessWidget {
                 RouteNames.mainNavigation,
                 (route) => false,
               ),
-              child: const Text('Go to Home'),
+              child: Text(L10n.tr('Go to Home')),
             ),
           ],
         ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
 import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -30,6 +33,7 @@ class GoOnlineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final dashboard = context.watch<DashboardProvider>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -57,12 +61,12 @@ class GoOnlineScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Expanded(
                             child: Text(
-                              "Today's summary",
-                              style: TextStyle(
+                              L10n.tr("Today's summary"),
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: _textDark,
@@ -70,8 +74,9 @@ class GoOnlineScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Fri 12 Jun',
-                            style: TextStyle(
+                            DateFormat('EEE d MMM', L10n.code)
+                                .format(DateTime.now()),
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: _subtitleColor,
@@ -104,9 +109,9 @@ class GoOnlineScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Go offline',
-                            style: TextStyle(
+                          child: Text(
+                            L10n.tr('Go offline'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: _buttonGreen,
@@ -176,9 +181,9 @@ class GoOnlineScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Text(
-                          "You're online",
-                          style: TextStyle(
+                        Text(
+                          L10n.tr("You're online"),
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: _nameChipText,
@@ -319,7 +324,7 @@ class GoOnlineScreen extends StatelessWidget {
                         if (!context.mounted) return;
                         if (!ok) {
                           final message = provider.error ??
-                              'Failed to update auto-accept';
+                              L10n.tr('Failed to update auto-accept');
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
                             ..showSnackBar(
@@ -344,7 +349,7 @@ class GoOnlineScreen extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          enabled ? 'Disable' : 'Enable',
+                          enabled ? L10n.tr('Disable') : L10n.tr('Enable'),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -361,6 +366,7 @@ class GoOnlineScreen extends StatelessWidget {
   }
 
   Widget _buildScheduledBanner(BuildContext context) {
+    final dashboard = context.watch<DashboardProvider>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
@@ -400,19 +406,19 @@ class GoOnlineScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '2 scheduled orders today',
-                    style: TextStyle(
+                    dashboard.scheduledOrdersLabel,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: _textDark,
                     ),
                   ),
                 ),
-                const Text(
-                  'View',
-                  style: TextStyle(
+                Text(
+                  L10n.tr('View'),
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: _viewGreen,
@@ -454,17 +460,17 @@ class GoOnlineScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
+        Expanded(
           child: SizedBox(
             height: 78,
             child: _OnlineStatCard(
-              icon: Icon(
+              icon: const Icon(
                 Icons.arrow_upward_rounded,
                 size: 18,
                 color: Color(0xFF4CAF50),
               ),
               value: '4',
-              label: 'Orders',
+              label: L10n.tr('Orders'),
             ),
           ),
         ),
@@ -487,22 +493,22 @@ class GoOnlineScreen extends StatelessWidget {
                 ),
               ),
               value: 'BHD 12.50',
-              label: 'Earnings',
+              label: L10n.tr('Earnings'),
             ),
           ),
         ),
         const SizedBox(width: 10),
-        const Expanded(
+        Expanded(
           child: SizedBox(
             height: 78,
             child: _OnlineStatCard(
-              icon: Icon(
+              icon: const Icon(
                 Icons.access_time_rounded,
                 size: 18,
                 color: Color(0xFF4CAF50),
               ),
               value: '3h 20m',
-              label: 'Online',
+              label: L10n.tr('Online'),
             ),
           ),
         ),
@@ -529,26 +535,26 @@ class _GoOnlineWaitingBanner extends StatelessWidget {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.bolt, color: GoOnlineScreen._waitingBolt, size: 22),
-          SizedBox(width: 10),
+          const Icon(Icons.bolt, color: GoOnlineScreen._waitingBolt, size: 22),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Waiting for requests...',
-                  style: TextStyle(
+                  L10n.tr('Waiting for requests...'),
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: GoOnlineScreen._textDark,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Stay near busy areas for more orders',
-                  style: TextStyle(
+                  L10n.tr('Stay near busy areas for more orders'),
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
                     color: GoOnlineScreen._subtitleColor,

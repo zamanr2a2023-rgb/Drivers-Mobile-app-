@@ -6,6 +6,7 @@ import 'package:yjeek_driver/core/constants/app_strings.dart';
 import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -16,14 +17,14 @@ class SettingsScreen extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Settings'),
+      appBar: CustomAppBar(title: L10n.tr('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(AppSizes.paddingMd),
         children: [
           Card(
             child: ListTile(
               leading: const Icon(Icons.language, color: AppColors.primary),
-              title: const Text('Language'),
+              title: Text(L10n.tr('Language')),
               subtitle: Text(settings.language),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.pushNamed(context, RouteNames.language),
@@ -33,8 +34,8 @@ class SettingsScreen extends StatelessWidget {
             child: SwitchListTile(
               secondary: const Icon(Icons.notifications_outlined,
                   color: AppColors.primary),
-              title: const Text('Notifications'),
-              subtitle: const Text('Push notifications'),
+              title: Text(L10n.tr('Notifications')),
+              subtitle: Text(L10n.tr('Push notifications')),
               value: settings.notificationsEnabled,
               activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
               activeThumbColor: AppColors.primary,
@@ -45,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.privacy_tip_outlined,
                   color: AppColors.primary),
-              title: const Text(AppStrings.privacyPolicy),
+              title: Text(AppStrings.privacyPolicy),
               trailing: const Icon(Icons.chevron_right),
               onTap: () =>
                   Navigator.pushNamed(context, RouteNames.privacyPolicy),
@@ -55,11 +56,11 @@ class SettingsScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.description_outlined,
                   color: AppColors.primary),
-              title: const Text('Open-source licenses'),
+              title: Text(L10n.tr('Open-source licenses')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => showLicensePage(
                 context: context,
-                applicationName: 'Yjeek Driver',
+                applicationName: AppStrings.appName,
               ),
             ),
           ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE1 · Earnings
@@ -50,7 +53,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
   double _monthlyBreakdownTotal = 0;
   double _monthlyCodToSettle = 0;
 
-  static const _periods = ['Today', 'This week', 'This month'];
+  static const _periodKeys = ['Today', 'This week', 'This month'];
 
   @override
   void initState() {
@@ -222,17 +225,18 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 10, 20, 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
               child: Text(
-                'Earnings',
-                style: TextStyle(
+                L10n.tr('Earnings'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: DocColors.textPrimary,
@@ -273,7 +277,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        children: List.generate(_periods.length, (i) {
+        children: List.generate(_periodKeys.length, (i) {
           final selected = i == _selectedPeriod;
           return Expanded(
             child: GestureDetector(
@@ -299,7 +303,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       : null,
                 ),
                 child: Text(
-                  _periods[i],
+                  L10n.tr(_periodKeys[i]),
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
@@ -330,30 +334,39 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     : 'BHD 86.400')
                 : 'BHD 86.400'));
     final tripsText = isToday
-        ? (_hasTodayData ? '${_todayTrips} trips' : '32 trips')
-        : (isWeekly
-            ? (_hasWeeklyData ? '${_weeklyTrips} trips' : '32 trips')
-            : (isMonthly
-                ? (_hasMonthlyData ? '${_monthlyTrips} trips' : '32 trips')
-                : '32 trips'));
-    final onlineLabelText = isToday
         ? (_hasTodayData
-            ? '$_todayOnlineDurationLabel online'
-            : '18h 20m online')
+            ? L10n.trParams('{count} trips', {'count': '$_todayTrips'})
+            : L10n.trParams('{count} trips', {'count': '32'}))
         : (isWeekly
             ? (_hasWeeklyData
-                ? '$_weeklyOnlineDurationLabel online'
-                : '18h 20m online')
+                ? L10n.trParams('{count} trips', {'count': '$_weeklyTrips'})
+                : L10n.trParams('{count} trips', {'count': '32'}))
             : (isMonthly
                 ? (_hasMonthlyData
-                    ? '$_monthlyOnlineDurationLabel online'
-                    : '18h 20m online')
-                : '18h 20m online'));
+                    ? L10n.trParams('{count} trips', {'count': '$_monthlyTrips'})
+                    : L10n.trParams('{count} trips', {'count': '32'}))
+                : L10n.trParams('{count} trips', {'count': '32'})));
+    final onlineLabelText = isToday
+        ? (_hasTodayData
+            ? L10n.trParams('{duration} online',
+                {'duration': _todayOnlineDurationLabel})
+            : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
+        : (isWeekly
+            ? (_hasWeeklyData
+                ? L10n.trParams('{duration} online',
+                    {'duration': _weeklyOnlineDurationLabel})
+                : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
+            : (isMonthly
+                ? (_hasMonthlyData
+                    ? L10n.trParams('{duration} online',
+                        {'duration': _monthlyOnlineDurationLabel})
+                    : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
+                : L10n.trParams('{duration} online', {'duration': '18h 20m'})));
     final titleText = isToday
-        ? 'Today · earnings'
+        ? L10n.tr('Today · earnings')
         : isWeekly
-            ? 'This week · earnings'
-            : 'This month · earnings';
+            ? L10n.tr('This week · earnings')
+            : L10n.tr('This month · earnings');
 
     return Container(
       width: double.infinity,
@@ -429,8 +442,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
+        children: [
+          const Text(
             'ⓘ',
             style: TextStyle(
               fontSize: 14,
@@ -438,12 +451,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
               color: DocColors.infoText,
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Amounts shown are estimates and may not be final. '
-              'Your earnings are confirmed after settlement.',
-              style: TextStyle(
+              L10n.tr(
+                'Amounts shown are estimates and may not be final. Your earnings are confirmed after settlement.',
+              ),
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 height: 1.35,
@@ -497,31 +511,35 @@ class _EarningsScreenState extends State<EarningsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Breakdown',
-            style: TextStyle(
+            L10n.tr('Breakdown'),
+            style: const TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
               color: DocColors.textPrimary,
             ),
           ),
-          SizedBox(height: 12),
-          _BreakdownRow(label: 'Trip fares', value: tripFaresText),
-          SizedBox(height: 10),
+          const SizedBox(height: 12),
+          _BreakdownRow(label: L10n.tr('Trip fares'), value: tripFaresText),
+          const SizedBox(height: 10),
           _BreakdownRow(
-            label: 'Tips',
+            label: L10n.tr('Tips'),
             value: tipsText,
             valueColor: DocColors.greenDark,
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           _BreakdownRow(
-            label: 'Incentives & bonuses',
+            label: L10n.tr('Incentives & bonuses'),
             value: incentivesText,
             valueColor: DocColors.greenDark,
           ),
-          SizedBox(height: 12),
-          Divider(height: 1, thickness: 1, color: DocColors.cardBorder),
-          SizedBox(height: 12),
-          _BreakdownRow(label: 'Total', value: totalText, bold: true),
+          const SizedBox(height: 12),
+          const Divider(height: 1, thickness: 1, color: DocColors.cardBorder),
+          const SizedBox(height: 12),
+          _BreakdownRow(
+            label: L10n.tr('Total'),
+            value: totalText,
+            bold: true,
+          ),
         ],
       ),
     );
@@ -555,8 +573,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'COD to settle',
-                  style: TextStyle(
+                  L10n.tr('COD to settle'),
+                  style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF9A6A1E),

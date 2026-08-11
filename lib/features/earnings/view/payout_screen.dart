@@ -9,6 +9,8 @@ import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
 import 'package:yjeek_driver/core/widgets/custom_button.dart';
 import 'package:yjeek_driver/core/widgets/custom_text_field.dart';
 import 'package:yjeek_driver/features/earnings/provider/earnings_provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 
 class PayoutScreen extends StatefulWidget {
   const PayoutScreen({super.key});
@@ -32,23 +34,28 @@ class _PayoutScreenState extends State<PayoutScreen> {
     final amount = double.parse(_amountController.text.trim());
     final provider = context.read<EarningsProvider>();
     if (amount > provider.totalBalance) {
-      AppHelpers.showSnackBar(context, 'Amount exceeds available balance', isError: true);
+      AppHelpers.showSnackBar(
+        context,
+        L10n.tr('Amount exceeds available balance'),
+        isError: true,
+      );
       return;
     }
     final success = await provider.requestPayout(amount);
     if (!mounted) return;
     if (success) {
-      AppHelpers.showSnackBar(context, 'Payout requested successfully!');
+      AppHelpers.showSnackBar(context, L10n.tr('Payout requested successfully!'));
       Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final provider = context.watch<EarningsProvider>();
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Request Payout'),
+      appBar: CustomAppBar(title: L10n.tr('Request Payout')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSizes.paddingMd),
@@ -59,23 +66,29 @@ class _PayoutScreenState extends State<PayoutScreen> {
               children: [
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.account_balance, color: AppColors.primary),
-                    title: const Text('Bank Account'),
-                    subtitle: const Text('**** **** **** 4521 (Placeholder)'),
+                    leading: const Icon(
+                      Icons.account_balance,
+                      color: AppColors.primary,
+                    ),
+                    title: Text(L10n.tr('Bank Account')),
+                    subtitle: Text(
+                      L10n.tr('**** **** **** 4521 (Placeholder)'),
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                   ),
                 ),
                 const SizedBox(height: AppSizes.paddingMd),
                 Text(
-                  'Available: ${AppHelpers.formatCurrency(provider.totalBalance)}',
+                  '${L10n.tr('Available:')} ${AppHelpers.formatCurrency(provider.totalBalance)}',
                   style: const TextStyle(color: AppColors.textLight),
                 ),
                 const SizedBox(height: AppSizes.paddingSm),
                 CustomTextField(
                   controller: _amountController,
-                  labelText: 'Amount',
+                  labelText: L10n.tr('Amount'),
                   hintText: '0.00',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   prefixIcon: const Icon(Icons.attach_money),
                   validator: Validators.amount,
                 ),

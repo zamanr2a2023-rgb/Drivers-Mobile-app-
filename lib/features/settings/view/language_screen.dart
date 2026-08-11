@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yjeek_driver/features/profile/service/profile_service.dart';
+import 'package:yjeek_driver/features/content/model/app_language_option.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
-/// DA3 · Language
+/// DA3 · Language — options from `GET /content/languages`,
+/// strings from `GET /content/translations`, preference via
+/// `PATCH /drivers/account/language`.
 class LanguageScreen extends StatefulWidget {
   const LanguageScreen({super.key});
 
@@ -14,52 +17,28 @@ class LanguageScreen extends StatefulWidget {
 }
 
 class _LanguageScreenState extends State<LanguageScreen> {
-  static const _languages = [
-    (primary: 'English', secondary: 'English', value: 'English', code: 'en'),
-    (primary: 'العربية', secondary: 'Arabic', value: 'Arabic', code: 'ar'),
-  ];
-
-  final ProfileService _profileService = ProfileService();
-
   late String _selected;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    final current = context.read<SettingsProvider>().language;
-    _selected = _languages.any((l) => l.value == current)
-        ? current
-        : _languages.first.value;
+    final settings = context.read<SettingsProvider>();
+    _selected = settings.languageCode;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCurrentLanguage();
+      _bootstrap();
     });
   }
 
-  String _valueForCode(String? code) {
-    final normalized = code?.trim().toLowerCase() ?? '';
-    for (final lang in _languages) {
-      if (lang.code == normalized) return lang.value;
+  Future<void> _bootstrap() async {
+    final settings = context.read<SettingsProvider>();
+    if (!settings.isInitialized) {
+      await settings.initialize();
     }
-    return _languages.first.value;
-  }
-
-  String get _selectedCode {
-    for (final lang in _languages) {
-      if (lang.value == _selected) return lang.code;
-    }
-    return _languages.first.code;
-  }
-
-  Future<void> _loadCurrentLanguage() async {
-    try {
-      final personal = await _profileService.getPersonalAccount();
-      if (!mounted) return;
-      setState(() => _selected = _valueForCode(personal.language));
-    } catch (_) {
-      // Keep local selection on failure.
-    }
+    await settings.loadLanguages();
+    if (!mounted) return;
+    setState(() => _selected = settings.languageCode);
   }
 
   Future<void> _save() async {
@@ -67,64 +46,88 @@ class _LanguageScreenState extends State<LanguageScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final savedCode = await _profileService.updateLanguage(_selectedCode);
+      final settings = context.read<SettingsProvider>();
+      final savedCode = await settings.setLanguage(_selected);
       if (!mounted) return;
 
-      final displayValue = _valueForCode(savedCode);
-      context.read<SettingsProvider>().setLanguage(displayValue);
-      showDocSnack(context, 'Language set to $displayValue');
+      String display = savedCode == 'ar' ? 'Arabic' : 'English';
+      for (final lang in settings.languages) {
+        if (lang.code == savedCode) {
+          display = lang.englishLabel;
+          break;
+        }
+      }
+
+      showDocSnack(
+        context,
+        L10n.trParams('Language set to {name}', {'name': display}),
+      );
       Navigator.pop(context);
     } on ApiException catch (e) {
       if (!mounted) return;
       showDocSnack(context, e.message);
     } catch (_) {
       if (!mounted) return;
-      showDocSnack(context, 'Failed to update language');
+      showDocSnack(context, L10n.tr('Failed to update language'));
     } finally {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final languages = settings.languages.isNotEmpty
+        ? settings.languages
+        : AppLanguageOption.fallback;
+    final loadingList =
+        settings.languagesLoading && settings.languages.isEmpty;
+
     return Scaffold(
       backgroundColor: DocColors.accountBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DocHeader(title: 'Language'),
+            DocHeader(title: L10n.tr('Language')),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLanguageCard(),
-                    const SizedBox(height: 14),
-                    _buildInfoBanner(),
-                    const SizedBox(height: 22),
-                    if (_isSaving)
-                      const SizedBox(
-                        height: 52,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: DocColors.pillGreen,
-                          ),
-                        ),
-                      )
-                    else
-                      DocPrimaryButton(
-                        label: 'Save',
+              child: loadingList
+                  ? const Center(
+                      child: CircularProgressIndicator(
                         color: DocColors.pillGreen,
-                        radius: 28,
-                        height: 52,
-                        onPressed: _save,
                       ),
-                  ],
-                ),
-              ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLanguageCard(languages),
+                          const SizedBox(height: 14),
+                          _buildInfoBanner(),
+                          const SizedBox(height: 22),
+                          if (_isSaving)
+                            const SizedBox(
+                              height: 52,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: DocColors.pillGreen,
+                                ),
+                              ),
+                            )
+                          else
+                            DocPrimaryButton(
+                              label: L10n.tr('Save'),
+                              color: DocColors.pillGreen,
+                              radius: 28,
+                              height: 52,
+                              onPressed: _save,
+                            ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -132,7 +135,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
     );
   }
 
-  Widget _buildLanguageCard() {
+  Widget _buildLanguageCard(List<AppLanguageOption> languages) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -143,26 +146,24 @@ class _LanguageScreenState extends State<LanguageScreen> {
       ),
       child: Column(
         children: [
-          for (var i = 0; i < _languages.length; i++) ...[
+          for (var i = 0; i < languages.length; i++) ...[
             if (i > 0)
               const Divider(
                 height: 1,
                 thickness: 1,
                 color: DocColors.accountBorder,
               ),
-            _buildLanguageRow(_languages[i]),
+            _buildLanguageRow(languages[i]),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildLanguageRow(
-    ({String primary, String secondary, String value, String code}) lang,
-  ) {
-    final selected = _selected == lang.value;
+  Widget _buildLanguageRow(AppLanguageOption lang) {
+    final selected = _selected == lang.code;
     return InkWell(
-      onTap: _isSaving ? null : () => setState(() => _selected = lang.value),
+      onTap: _isSaving ? null : () => setState(() => _selected = lang.code),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
@@ -172,7 +173,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    lang.primary,
+                    lang.nativeName,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -181,7 +182,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    lang.secondary,
+                    lang.name,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w400,
@@ -222,13 +223,13 @@ class _LanguageScreenState extends State<LanguageScreen> {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('🌐', style: TextStyle(fontSize: 14, height: 1.1)),
-          SizedBox(width: 10),
+        children: [
+          const Text('🌐', style: TextStyle(fontSize: 14, height: 1.1)),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'The language applies across the whole app.',
-              style: TextStyle(
+              L10n.tr('The language applies across the whole app.'),
+              style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 height: 15 / 12.5,

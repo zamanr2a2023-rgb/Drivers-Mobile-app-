@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/theme/app_theme.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
@@ -12,6 +13,8 @@ import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/profile/provider/profile_provider.dart';
 import 'package:yjeek_driver/features/scheduled_orders/provider/scheduled_order_provider.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/app_locales.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/app_routes.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -32,14 +35,36 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => IncidentProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider()..initialize(),
+        ),
       ],
-      child: MaterialApp(
-        title: 'Yjeek Champ',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        initialRoute: RouteNames.splash,
-        onGenerateRoute: AppRoutes.generateRoute,
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, _) {
+          // Depend on revision so translated strings rebuild.
+          final _ = settings.revision;
+          return MaterialApp(
+            title: L10n.tr('Yjeek Champ'),
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            locale: settings.locale,
+            supportedLocales: AppLocales.supported,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            initialRoute: RouteNames.splash,
+            onGenerateRoute: AppRoutes.generateRoute,
+            builder: (context, child) {
+              return Directionality(
+                textDirection:
+                    settings.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+          );
+        },
       ),
     );
   }

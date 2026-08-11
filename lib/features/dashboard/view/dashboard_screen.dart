@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
 import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -120,6 +123,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final dashboard = context.watch<DashboardProvider>();
     _syncOfferPolling(dashboard.isOnline);
 
@@ -151,9 +155,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "You're offline",
-                      style: TextStyle(
+                    Text(
+                      L10n.tr("You're offline"),
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: _textDark,
@@ -161,9 +165,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Go online to start receiving delivery requests near you.',
-                      style: TextStyle(
+                    Text(
+                      L10n.tr(
+                        'Go online to start receiving delivery requests near you.',
+                      ),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
                         color: _subtitleColor,
@@ -204,18 +210,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Row(
+                            : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.bolt_rounded,
                                     color: Colors.white,
                                     size: 22,
                                   ),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'Go online',
-                                    style: TextStyle(
+                                    L10n.tr('Go online'),
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.white,
@@ -241,7 +247,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!context.mounted) return;
     if (ok) return;
 
-    final message = provider.error ?? 'Failed to go online';
+    final message = provider.error ?? L10n.tr('Failed to go online');
     if (_isPodReconcileBlock(message)) {
       await _showPodReconcileDialog(context, provider, message);
       return;
@@ -274,16 +280,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Can't go online"),
+        title: Text(L10n.tr("Can't go online")),
         content: Text(
           amount == null
-              ? '$message\n\nHand over / settle collected POD cash with ops, then try again.'
-              : '$message\n\nOutstanding POD cash: $amount\n\nSettle this with ops, then try Go online again.',
+              ? '$message\n\n${L10n.tr('Hand over / settle collected POD cash with ops, then try again.')}'
+              : '$message\n\n${L10n.trParams('Outstanding POD cash: {amount} Settle this with ops, then try Go online again.', {
+                    'amount': amount,
+                  })}',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+            child: Text(L10n.tr('OK')),
           ),
         ],
       ),
@@ -300,8 +308,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         border: Border.all(color: const Color(0xFFFFD47D)),
       ),
       child: Text(
-        'Outstanding POD cash: ${dashboard.pendingCashCollectedLabel}. '
-        'Reconcile with ops before going online.',
+        L10n.trParams(
+          'Outstanding POD cash: {amount}. Reconcile with ops before going online.',
+          {'amount': dashboard.pendingCashCollectedLabel},
+        ),
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -376,13 +386,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const _OnlinePill(
+                    _OnlinePill(
                       color: _onlineGreenPill,
                       horizontalPadding: 12,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             width: 8,
                             height: 8,
                             child: DecoratedBox(
@@ -392,10 +402,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            "You're online",
-                            style: TextStyle(
+                            L10n.tr("You're online"),
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                               color: _onlineGreenDark,
@@ -570,24 +580,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           SnackBar(
                             content: Text(
                               ok
-                                  ? 'Auto-Accept enabled'
+                                  ? L10n.tr('Auto-Accept enabled')
                                   : (context
                                           .read<DashboardProvider>()
                                           .error ??
-                                      'Could not enable Auto-Accept'),
+                                      L10n.tr('Could not enable Auto-Accept')),
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       },
                 borderRadius: BorderRadius.circular(16),
-                child: const SizedBox(
+                child: SizedBox(
                   width: 70,
                   height: 32,
                   child: Center(
                     child: Text(
-                      'Enable',
-                      style: TextStyle(
+                      L10n.tr('Enable'),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: _onlineBg,
@@ -660,9 +670,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'View',
-                  style: TextStyle(
+                Text(
+                  L10n.tr('View'),
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF5BC970),
@@ -692,14 +702,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: Text(
-                  "Today's summary",
+                  L10n.tr("Today's summary"),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: _onlineText,
@@ -708,8 +718,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               Text(
-                'Fri 12 Jun',
-                style: TextStyle(
+                DateFormat('EEE d MMM', L10n.code).format(DateTime.now()),
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: _onlineMuted,
@@ -731,7 +741,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: _onlineGreenDark,
                     ),
                     value: '${dashboard.tripsToday}',
-                    label: 'Orders',
+                    label: L10n.tr('Orders'),
                   ),
                 ),
               ),
@@ -747,7 +757,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: _onlineGreenDark,
                     ),
                     value: dashboard.todayEarningsLabel,
-                    label: 'Earnings',
+                    label: L10n.tr('Earnings'),
                   ),
                 ),
               ),
@@ -762,7 +772,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: _onlineGreenDark,
                     ),
                     value: dashboard.onlineDurationLabel,
-                    label: 'Online',
+                    label: L10n.tr('Online'),
                   ),
                 ),
               ),
@@ -783,7 +793,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              provider.error ?? 'Failed to go offline',
+                              provider.error ?? L10n.tr('Failed to go offline'),
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -800,9 +810,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius: BorderRadius.circular(13),
                 ),
               ),
-              child: const Text(
-                'Go offline',
-                style: TextStyle(
+              child: Text(
+                L10n.tr('Go offline'),
+                style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                   color: _onlineGreenDark,
@@ -846,10 +856,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: _offlineChipBg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 7,
                   height: 7,
                   child: DecoratedBox(
@@ -859,10 +869,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
-                  'Offline',
-                  style: TextStyle(
+                  L10n.tr('Offline'),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: _offlineText,
@@ -969,9 +979,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-                const Text(
-                  'View',
-                  style: TextStyle(
+                Text(
+                  L10n.tr('View'),
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: _viewGreen,
@@ -1003,7 +1013,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Color(0xFF4CAF50),
               ),
               value: '${dashboard.tripsToday}',
-              label: 'Trips today',
+              label: L10n.tr('Trips today'),
             ),
           ),
         ),
@@ -1019,7 +1029,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Color(0xFF4CAF50),
               ),
               value: dashboard.todayEarningsLabel,
-              label: 'Earnings',
+              label: L10n.tr('Earnings'),
             ),
           ),
         ),
@@ -1034,7 +1044,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Color(0xFF4CAF50),
               ),
               value: dashboard.onlineDurationLabel,
-              label: 'Online',
+              label: L10n.tr('Online'),
             ),
           ),
         ),

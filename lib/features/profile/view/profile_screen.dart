@@ -10,6 +10,8 @@ import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// DE4 · Account
@@ -55,9 +57,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String get _accountStatusLabel {
     final s = _accountStatus.trim();
-    if (s.isEmpty) return 'Active';
+    if (s.isEmpty) return L10n.tr('Active');
     final lower = s.toLowerCase();
-    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    final label = '${lower[0].toUpperCase()}${lower.substring(1)}';
+    return L10n.tr(label);
   }
 
   @override
@@ -198,17 +201,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 10, 20, 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
               child: Text(
-                'Account',
-                style: TextStyle(
+                L10n.tr('Account'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: DocColors.textPrimary,
@@ -330,8 +334,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     SizedBox(width: 10),
                     Text(
-                      '$_totalOrders Orders',
-                      style: TextStyle(
+                      L10n.trParams('{count} Orders', {'count': '$_totalOrders'}),
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: DocColors.textSecondary,
@@ -381,8 +385,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Champ ID',
-                  style: TextStyle(
+                  L10n.tr('Champ ID'),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: DocColors.textSecondary,
@@ -404,9 +408,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                const Text(
-                  'Contact number',
-                  style: TextStyle(
+                Text(
+                  L10n.tr('Contact number'),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: DocColors.textSecondary,
@@ -415,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Spacer(),
                 Text(
                   '$_countryCode $_phone',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: DocColors.textPrimary,
@@ -428,12 +432,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () => _openAndRefresh(RouteNames.changeNumber),
-                    child: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       child: Text(
-                        'Change',
-                        style: TextStyle(
+                        L10n.tr('Change'),
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: DocColors.greenDark,
@@ -461,10 +465,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: DocColors.greenDark,
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Auto-Accept orders',
-              style: TextStyle(
+              L10n.tr('Auto-Accept orders'),
+              style: const TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
                 color: DocColors.textPrimary,
@@ -510,8 +514,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _SettingsRow(
             iconAsset: AppAssets.accountDocuments,
-            label: 'Documents',
-            badge: _documentsVerifiedBadge ? 'Verified' : 'Verify',
+            label: L10n.tr('Documents'),
+            badge: _documentsVerifiedBadge
+                ? L10n.tr('Verified')
+                : L10n.tr('Verify'),
             onTap: () => _openAndRefresh(RouteNames.documents),
           ),
           const Divider(
@@ -523,7 +529,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _SettingsRow(
             icon: Icons.notifications_none_rounded,
-            label: 'Notifications',
+            label: L10n.tr('Notifications'),
             onTap: () => _openAndRefresh(RouteNames.notifications),
           ),
           const Divider(
@@ -535,8 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _SettingsRow(
             icon: Icons.language_rounded,
-            label: 'Language',
-            badge: _language.toUpperCase(),
+            label: L10n.tr('Language'),
+            badge: context.watch<SettingsProvider>().languageCode.toUpperCase(),
             onTap: () => _openAndRefresh(RouteNames.language),
           ),
         ],
@@ -563,9 +569,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Image.asset(AppAssets.accountLogout, width: 18, height: 18),
               const SizedBox(width: 8),
-              const Text(
-                'Log out',
-                style: TextStyle(
+              Text(
+                L10n.tr('Log out'),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFFC0392B),

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/app_colors.dart';
 import 'package:yjeek_driver/core/constants/app_sizes.dart';
 import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -35,13 +38,18 @@ For privacy-related questions, email us at privacy@yjeek.com.
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Privacy Policy'),
+      appBar: CustomAppBar(title: L10n.tr('Privacy Policy')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.paddingMd),
         child: Text(
-          _policyText,
-          style: const TextStyle(color: AppColors.textDark, height: 1.6, fontSize: 14),
+          L10n.tr(_policyText.trim()),
+          style: const TextStyle(
+            color: AppColors.textDark,
+            height: 1.6,
+            fontSize: 14,
+          ),
         ),
       ),
     );

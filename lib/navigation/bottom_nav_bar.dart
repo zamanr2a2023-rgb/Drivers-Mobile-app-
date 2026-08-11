@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 
 class BottomNavBar extends StatelessWidget {
   const BottomNavBar({
@@ -31,6 +34,8 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -54,27 +59,27 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: _navIcon(_homeIcon, false),
             activeIcon: _navIcon(_homeIcon, true),
-            label: 'Home',
+            label: L10n.tr('Home'),
           ),
           BottomNavigationBarItem(
             icon: _navIcon(_ordersIcon, false),
             activeIcon: _navIcon(_ordersIcon, true),
-            label: 'Orders',
+            label: L10n.tr('Orders'),
           ),
           BottomNavigationBarItem(
             icon: _navIcon(_earningsIcon, false),
             activeIcon: _navIcon(_earningsIcon, true),
-            label: 'Earnings',
+            label: L10n.tr('Earnings'),
           ),
           BottomNavigationBarItem(
             icon: _navIcon(_performanceIcon, false),
             activeIcon: _navIcon(_performanceIcon, true),
-            label: 'Performance',
+            label: L10n.tr('Performance'),
           ),
           BottomNavigationBarItem(
             icon: _navIcon(_accountIcon, false),
             activeIcon: _navIcon(_accountIcon, true),
-            label: 'Account',
+            label: L10n.tr('Account'),
           ),
         ],
       ),

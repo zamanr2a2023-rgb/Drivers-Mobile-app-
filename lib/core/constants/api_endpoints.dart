@@ -2,8 +2,8 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
- //static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
+  // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
+ static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
  //static const String baseUrl = "https://api.yjeektech.com/api/v1/health"; 
 
   // Auth
@@ -39,6 +39,14 @@ class ApiEndpoints {
   static const String accountAvatar = '/drivers/account/avatar';
   static const String accountLanguage = '/drivers/account/language';
   static const String accountLogout = '/drivers/account/logout';
+
+  // Content / localization (shared backend catalog)
+  static const String contentLanguages = '/content/languages';
+  static const String contentTranslations = '/content/translations';
+
+  static String contentTranslationsFor(String lang) =>
+      '$contentTranslations?lang=${Uri.encodeQueryComponent(lang.trim().toLowerCase())}';
+
   static const String accountPhoneSendOtp = '/drivers/account/phone/send-otp';
   static const String accountPhoneVerify = '/drivers/account/phone/verify';
   static const String accountVehicle = '/drivers/account/vehicle';

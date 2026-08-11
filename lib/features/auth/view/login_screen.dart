@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/features/auth/model/otp_screen_args.dart';
 import 'package:yjeek_driver/features/auth/service/auth_service.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
@@ -117,6 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: _background,
@@ -149,9 +153,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'login',
-                          style: TextStyle(
+                        Text(
+                          L10n.tr('login'),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: _textDark,
@@ -161,11 +165,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Welcome back champ,',
-                      style: TextStyle(
+                      L10n.tr('Welcome back champ,'),
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: _textDark,
@@ -173,11 +177,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Enter your registered phone number to receive a one-time verification code.',
-                      style: TextStyle(
+                      L10n.tr(
+                        'Enter your registered phone number to receive a one-time verification code.',
+                      ),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: _subtitleColor,
@@ -284,9 +290,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               )
-                            : const Text(
-                                'Send code',
-                                style: TextStyle(
+                            : Text(
+                                L10n.tr('Send code'),
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,

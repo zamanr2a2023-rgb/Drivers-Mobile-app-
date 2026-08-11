@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 class CantGoOnlineScreen extends StatelessWidget {
@@ -15,6 +18,7 @@ class CantGoOnlineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: _headerBg,
@@ -45,25 +49,25 @@ class CantGoOnlineScreen extends StatelessWidget {
                           if (Navigator.canPop(context)) Navigator.pop(context);
                         },
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Padding(
-                          padding: EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.only(top: 10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Can't go online",
-                                style: TextStyle(
+                                L10n.tr("Can't go online"),
+                                style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                   height: 1.2,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
-                                "Shift won't start yet",
-                                style: TextStyle(
+                                L10n.tr("Shift won't start yet"),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: Color(0xFFB8BEB8),
@@ -101,9 +105,11 @@ class CantGoOnlineScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      const Text(
-                        'You need an active data connection and GPS to enter the dispatch pool.',
-                        style: TextStyle(
+                      Text(
+                        L10n.tr(
+                          'You need an active data connection and GPS to enter the dispatch pool.',
+                        ),
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w400,
                           color: _subtitleColor,
@@ -112,9 +118,9 @@ class CantGoOnlineScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
-                      const _StatusRow(label: 'Internet'),
+                      _StatusRow(label: L10n.tr('Internet')),
                       const SizedBox(height: 12),
-                      const _StatusRow(label: 'GPS / Location'),
+                      _StatusRow(label: L10n.tr('GPS / Location')),
                       const SizedBox(height: 12),
                       Container(
                         width: double.infinity,
@@ -127,9 +133,11 @@ class CantGoOnlineScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: _cardBorder),
                         ),
-                        child: const Text(
-                          'Your shift does not start until both are confirmed active.',
-                          style: TextStyle(
+                        child: Text(
+                          L10n.tr(
+                            'Your shift does not start until both are confirmed active.',
+                          ),
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                             color: _subtitleColor,
@@ -157,9 +165,9 @@ class CantGoOnlineScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          child: const Text(
-                            'Retry connection',
-                            style: TextStyle(
+                          child: Text(
+                            L10n.tr('Retry connection'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -219,9 +227,9 @@ class _StatusRow extends StatelessWidget {
               ),
             ),
           ),
-          const Text(
-            'Off',
-            style: TextStyle(
+          Text(
+            L10n.tr('Off'),
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _offRed,

@@ -1,0 +1,195 @@
+/// English → Arabic offline fallbacks for driver UI.
+/// Remote catalog from `GET /content/translations?lang=` overrides these.
+const Map<String, String> kArabicTranslations = {
+  // App / auth
+  'Yjeek Driver': 'سائق يجيك',
+  'Yjeek Champ': 'شامب يجيك',
+  'Deliver with confidence': 'وصّل بثقة',
+  'Welcome Driver': 'مرحباً أيها السائق',
+  'Welcome back champ,': 'مرحباً بعودتك شامب،',
+  'Enter your phone number to continue': 'أدخل رقم هاتفك للمتابعة',
+  'Enter your registered phone number to receive a one-time verification code.':
+      'أدخل رقم هاتفك المسجّل لاستلام رمز التحقق لمرة واحدة.',
+  'Verify OTP': 'تحقق من الرمز',
+  'Enter the 6-digit code sent to your phone':
+      'أدخل الرمز المكوّن من 6 أرقام المرسل إلى هاتفك',
+  'Account Not Registered': 'الحساب غير مسجّل',
+  'Number not registered': 'الرقم غير مسجّل',
+  'Contact Support': 'تواصل مع الدعم',
+  'Back to Login': 'العودة لتسجيل الدخول',
+  'Try another number': 'جرّب رقماً آخر',
+  'login': 'تسجيل الدخول',
+  'Phone number is required': 'رقم الهاتف مطلوب',
+  'Enter a valid 8-digit phone number': 'أدخل رقم هاتف مكوّناً من 8 أرقام',
+  'Something went wrong. Please try again.': 'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
+  "isn't registered as a Yjeek champ. Please check the number, or apply to drive with Yjeek.":
+      'غير مسجّل كشامب يجيك. يرجى التحقق من الرقم، أو التقديم للقيادة مع يجيك.',
+  'Already applied? Your account may still be under review':
+      'قدّمت طلباً مسبقاً؟ قد يكون حسابك قيد المراجعة',
+
+  // Bottom nav
+  'Home': 'الرئيسية',
+  'Orders': 'الطلبات',
+  'Earnings': 'الأرباح',
+  'Performance': 'الأداء',
+  'Account': 'الحساب',
+
+  // Home / dashboard
+  "You're online": 'أنت متصل',
+  "You're offline": 'أنت غير متصل',
+  'Offline': 'غير متصل',
+  'Online': 'متصل',
+  'Driver': 'سائق',
+  'Go online': 'الاتصال',
+  'Go Offline': 'قطع الاتصال',
+  'Go offline': 'قطع الاتصال',
+  'Go Online': 'الاتصال',
+  'Go online to start receiving delivery requests near you.':
+      'اتصل لبدء استلام طلبات التوصيل بالقرب منك.',
+  "Today's summary": 'ملخص اليوم',
+  'Enable': 'تفعيل',
+  'Disable': 'إيقاف',
+  'View': 'عرض',
+  'Auto-Accept is on': 'القبول التلقائي مفعّل',
+  'Auto-Accept is off': 'القبول التلقائي متوقف',
+  'Orders will be accepted automatically': 'سيتم قبول الطلبات تلقائياً',
+  'Turn it on to get orders automatically': 'فعّله للحصول على الطلبات تلقائياً',
+  'Auto-Accept enabled': 'تم تفعيل القبول التلقائي',
+  'Could not enable Auto-Accept': 'تعذر تفعيل القبول التلقائي',
+  'Failed to update auto-accept': 'فشل تحديث القبول التلقائي',
+  '{count} scheduled orders today': '{count} طلبات مجدولة اليوم',
+  'Failed to go online': 'فشل الاتصال',
+  'Failed to go offline': 'فشل قطع الاتصال',
+  'Failed to load home': 'فشل تحميل الرئيسية',
+  'Fetching location...': 'جاري جلب الموقع...',
+  "Can't go online": 'تعذر الاتصال',
+  'OK': 'حسناً',
+  'Trips today': 'رحلات اليوم',
+  'Waiting for requests...': 'بانتظار الطلبات...',
+  'Stay near busy areas for more orders': 'ابقَ قرب المناطق المزدحمة لمزيد من الطلبات',
+  'Shift won\'t start yet': 'لن يبدأ الوردية بعد',
+  'You need an active data connection and GPS to enter the dispatch pool.':
+      'تحتاج اتصالاً نشطاً بالبيانات وGPS للدخول إلى مجموعة التوزيع.',
+  'Internet': 'الإنترنت',
+  'GPS / Location': 'GPS / الموقع',
+  'Your shift does not start until both are confirmed active.':
+      'لا تبدأ ورديتك حتى يتم تأكيد تفعيل الاثنين.',
+  'Retry connection': 'إعادة محاولة الاتصال',
+  'Off': 'إيقاف',
+  'Update required': 'التحديث مطلوب',
+  'Before you go online': 'قبل أن تتصل',
+  'A mandatory update is required before you can go online.':
+      'يلزم تحديث إلزامي قبل أن تتمكن من الاتصال.',
+  'Installed': 'المثبّت',
+  'Required': 'المطلوب',
+  'Opening store to update…': 'جاري فتح المتجر للتحديث…',
+  'Update now': 'حدّث الآن',
+  'Turn on Location Services, then try Go online again':
+      'فعّل خدمات الموقع ثم حاول الاتصال مرة أخرى',
+  'Location permission is required. Enable it in Settings.':
+      'إذن الموقع مطلوب. فعّله من الإعدادات.',
+  'Location permission is required to go online':
+      'إذن الموقع مطلوب للاتصال',
+  'Could not get your GPS location. Try again outdoors or wait a moment.':
+      'تعذر الحصول على موقع GPS. حاول في مكان مفتوح أو انتظر قليلاً.',
+  'Hand over / settle collected POD cash with ops, then try again.':
+      'سلّم / سوِّ النقد المحصّل عند التسليم مع العمليات، ثم حاول مرة أخرى.',
+  'Outstanding POD cash: {amount}. Reconcile with ops before going online.':
+      'نقد POD معلّق: {amount}. سوِّه مع العمليات قبل الاتصال.',
+  'Outstanding POD cash: {amount} Settle this with ops, then try Go online again.':
+      'نقد POD معلّق: {amount} سوِّه مع العمليات ثم حاول الاتصال مرة أخرى.',
+
+  // Orders
+  'Instant': 'فوري',
+  'Scheduled': 'مجدول',
+  'Active': 'نشط',
+  'Completed': 'مكتمل',
+  'No active orders': 'لا توجد طلبات نشطة',
+  'No completed orders': 'لا توجد طلبات مكتملة',
+  'Retry': 'إعادة المحاولة',
+  'New': 'جديد',
+  'Require confirmation': 'يتطلب تأكيداً',
+  'On track': 'قيد التنفيذ',
+  'View Orders': 'عرض الطلبات',
+
+  // Earnings
+  'Today': 'اليوم',
+  'This week': 'هذا الأسبوع',
+  'This month': 'هذا الشهر',
+  'Today · earnings': 'اليوم · الأرباح',
+  'This week · earnings': 'هذا الأسبوع · الأرباح',
+  'This month · earnings': 'هذا الشهر · الأرباح',
+  '{count} trips': '{count} رحلات',
+  '{duration} online': '{duration} متصل',
+  'Amounts shown are estimates and may not be final. Your earnings are confirmed after settlement.':
+      'المبالغ المعروضة تقديرية وقد لا تكون نهائية. تُؤكَّد أرباحك بعد التسوية.',
+  'Breakdown': 'التفصيل',
+  'Trip fares': 'أجور الرحلات',
+  'Tips': 'إكراميات',
+  'Incentives & bonuses': 'حوافز ومكافآت',
+  'Total': 'الإجمالي',
+  'COD to settle': 'الدفع عند الاستلام للتسوية',
+  'Transaction History': 'سجل المعاملات',
+  'Request Payout': 'طلب سحب',
+  'Bank Account': 'الحساب البنكي',
+  'Available:': 'المتاح:',
+  'Amount': 'المبلغ',
+  'Amount exceeds available balance': 'المبلغ يتجاوز الرصيد المتاح',
+  'Payout requested successfully!': 'تم طلب السحب بنجاح!',
+
+  // Account / profile
+  '{count} Orders': '{count} طلبات',
+  'Champ ID': 'معرّف الشامب',
+  'Contact number': 'رقم التواصل',
+  'Change': 'تغيير',
+  'Auto-Accept orders': 'قبول الطلبات تلقائياً',
+  'Documents': 'المستندات',
+  'Verified': 'موثّق',
+  'Verify': 'تحقّق',
+  'Log out': 'تسجيل الخروج',
+  'Logout': 'تسجيل الخروج',
+
+  // Common / settings
+  'Driver Home': 'الرئيسية',
+  'Safety Help': 'المساعدة والسلامة',
+  'Save': 'حفظ',
+  'Submit': 'إرسال',
+  'Confirm': 'تأكيد',
+  'Cancel': 'إلغاء',
+  'Accept': 'قبول',
+  'Reject': 'رفض',
+  'Send': 'إرسال',
+  'Send code': 'إرسال الرمز',
+  'Privacy Policy': 'سياسة الخصوصية',
+  'Language': 'اللغة',
+  'Settings': 'الإعدادات',
+  'Notifications': 'الإشعارات',
+  'Push notifications': 'إشعارات الدفع',
+  'Open-source licenses': 'تراخيص مفتوحة المصدر',
+  'English': 'English',
+  'Arabic': 'العربية',
+  'Total orders': 'إجمالي الطلبات',
+  'Acceptance': 'القبول',
+  'Completion': 'الإكمال',
+  'Rating': 'التقييم',
+  'On-time': 'في الوقت',
+  'RPI score': 'درجة RPI',
+  'Great standing': 'وضع ممتاز',
+  'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.':
+      'حافظ على RPI ≥ 82 للبقاء في الأولوية واستلام المزيد من الطلبات.',
+  'Gold': 'ذهبي',
+  '{tier} tier · weekly bonus unlocked':
+      'مستوى {tier} · تم فتح المكافأة الأسبوعية',
+  '{tier} tier · weekly bonus': 'مستوى {tier} · مكافأة أسبوعية',
+  '32 / 30 trips this week · BHD 8 bonus earned':
+      '32 / 30 رحلة هذا الأسبوع · مكافأة BHD 8',
+  '**** **** **** 4521 (Placeholder)': '**** **** **** 4521 (Placeholder)',
+  'The language applies across the whole app.':
+      'تُطبَّق اللغة على التطبيق بالكامل.',
+  'Language set to {name}': 'تم تعيين اللغة إلى {name}',
+  'Failed to update language': 'فشل تحديث اللغة',
+  'Go to Home': 'الذهاب للرئيسية',
+  'Page Not Found': 'الصفحة غير موجودة',
+  'The page you are looking for does not exist.':
+      'الصفحة التي تبحث عنها غير موجودة.',
+};

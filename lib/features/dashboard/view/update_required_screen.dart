@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 
 class UpdateRequiredScreen extends StatelessWidget {
   const UpdateRequiredScreen({super.key});
@@ -15,6 +18,7 @@ class UpdateRequiredScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: _headerGreen,
@@ -45,25 +49,25 @@ class UpdateRequiredScreen extends StatelessWidget {
                           if (Navigator.canPop(context)) Navigator.pop(context);
                         },
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Padding(
-                          padding: EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.only(top: 10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Update required',
-                                style: TextStyle(
+                                L10n.tr('Update required'),
+                                style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                   height: 1.2,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
-                                'Before you go online',
-                                style: TextStyle(
+                                L10n.tr('Before you go online'),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: Color(0xFFC8E6C9),
@@ -109,9 +113,11 @@ class UpdateRequiredScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      const Text(
-                        'A mandatory update is required before you can go online.',
-                        style: TextStyle(
+                      Text(
+                        L10n.tr(
+                          'A mandatory update is required before you can go online.',
+                        ),
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w400,
                           color: _subtitleColor,
@@ -131,20 +137,20 @@ class UpdateRequiredScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: _cardBorder),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Installed',
-                                  style: TextStyle(
+                                  L10n.tr('Installed'),
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                     color: _subtitleColor,
                                   ),
                                 ),
-                                Text(
+                                const Text(
                                   'v3.1.0',
                                   style: TextStyle(
                                     fontSize: 15,
@@ -154,19 +160,19 @@ class UpdateRequiredScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Required',
-                                  style: TextStyle(
+                                  L10n.tr('Required'),
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                     color: _subtitleColor,
                                   ),
                                 ),
-                                Text(
+                                const Text(
                                   'v3.2.0',
                                   style: TextStyle(
                                     fontSize: 15,
@@ -186,9 +192,11 @@ class UpdateRequiredScreen extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Opening store to update…'),
-                                duration: Duration(seconds: 2),
+                              SnackBar(
+                                content: Text(
+                                  L10n.tr('Opening store to update…'),
+                                ),
+                                duration: const Duration(seconds: 2),
                               ),
                             );
                           },
@@ -200,9 +208,9 @@ class UpdateRequiredScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          child: const Text(
-                            'Update now',
-                            style: TextStyle(
+                          child: Text(
+                            L10n.tr('Update now'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,

@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
+import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
+import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE2 · Performance
@@ -90,16 +93,20 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SettingsProvider>();
     final rpiScore = _hasData ? _rpiScore : 88;
     final totalOrders = _hasData ? _totalOrders : 284;
     final acceptanceRate = _hasData ? _acceptanceRate : 92;
     final completionRate = _hasData ? _completionRate : 98;
     final averageRating = _hasData ? _averageRating : 4.9;
     final onTimeRate = _hasData ? _onTimeRate : 95;
-    final standing = _hasData ? _standing : 'Great standing';
+    final standing =
+        _hasData ? _standing : L10n.tr('Great standing');
     final standingMessage = _hasData
         ? _standingMessage
-        : 'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.';
+        : L10n.tr(
+            'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.',
+          );
 
     return Scaffold(
       backgroundColor: DocColors.screenBg,
@@ -107,11 +114,11 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 10, 20, 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
               child: Text(
-                'Performance',
-                style: TextStyle(
+                L10n.tr('Performance'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: DocColors.textPrimary,
@@ -131,7 +138,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                     const SizedBox(height: 14),
                     _StatCard(
                       value: '$totalOrders',
-                      label: 'Total orders',
+                      label: L10n.tr('Total orders'),
                       centered: true,
                     ),
                     const SizedBox(height: 14),
@@ -140,14 +147,14 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                         Expanded(
                           child: _StatCard(
                             value: '$acceptanceRate%',
-                            label: 'Acceptance',
+                            label: L10n.tr('Acceptance'),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _StatCard(
                             value: '$completionRate%',
-                            label: 'Completion',
+                            label: L10n.tr('Completion'),
                             valueColor: DocColors.greenDark,
                           ),
                         ),
@@ -159,7 +166,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                         Expanded(
                           child: _StatCard(
                             value: '${averageRating.toStringAsFixed(1)}★',
-                            label: 'Rating',
+                            label: L10n.tr('Rating'),
                             valueColor: DocColors.gold,
                           ),
                         ),
@@ -167,7 +174,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                         Expanded(
                           child: _StatCard(
                             value: '$onTimeRate%',
-                            label: 'On-time',
+                            label: L10n.tr('On-time'),
                           ),
                         ),
                       ],
@@ -224,10 +231,10 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
               ),
             ),
           ),
-          const Center(
+          Center(
             child: Text(
-              'RPI score',
-              style: TextStyle(
+              L10n.tr('RPI score'),
+              style: const TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
                 color: DocColors.textSecondary,
@@ -260,14 +267,16 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
   }
 
   Widget _buildTierCard() {
-    final tierLabel = _hasData ? _tierLabel : 'Gold';
+    final tierLabel = _hasData ? _tierLabel : L10n.tr('Gold');
     final bonusUnlocked = _hasData ? _bonusUnlocked : true;
     final titleText = bonusUnlocked
-        ? '$tierLabel tier · weekly bonus unlocked'
-        : '$tierLabel tier · weekly bonus';
+        ? L10n.trParams('{tier} tier · weekly bonus unlocked', {
+            'tier': tierLabel,
+          })
+        : L10n.trParams('{tier} tier · weekly bonus', {'tier': tierLabel});
     final subtitleText = _hasData
         ? _weeklyBonusMessage
-        : '32 / 30 trips this week · BHD 8 bonus earned';
+        : L10n.tr('32 / 30 trips this week · BHD 8 bonus earned');
 
     return Container(
       width: double.infinity,
