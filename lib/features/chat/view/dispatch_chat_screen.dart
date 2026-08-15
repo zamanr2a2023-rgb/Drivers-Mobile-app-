@@ -5,6 +5,7 @@ import 'package:yjeek_driver/core/constants/app_sizes.dart';
 import 'package:yjeek_driver/core/utils/date_formatter.dart';
 import 'package:yjeek_driver/core/widgets/app_loader.dart';
 import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
+import 'package:yjeek_driver/features/chat/model/quick_reply_model.dart';
 import 'package:yjeek_driver/features/chat/provider/chat_provider.dart';
 
 class DispatchChatScreen extends StatefulWidget {
@@ -22,7 +23,9 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadMessages();
+      final provider = context.read<ChatProvider>();
+      provider.loadMessages();
+      provider.loadQuickReplies(peer: 'customer');
     });
   }
 
@@ -38,13 +41,21 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
     if (text.isEmpty) return;
     _messageController.clear();
     await context.read<ChatProvider>().sendMessage(text);
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    _scrollToBottom();
+  }
+
+  Future<void> _sendQuickReply(QuickReplyModel reply) async {
+    await context.read<ChatProvider>().sendQuickReply(reply);
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -65,29 +76,58 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
                     itemBuilder: (context, index) {
                       final msg = provider.messages[index];
                       return Align(
-                        alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: msg.isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
-                          margin: const EdgeInsets.only(bottom: AppSizes.paddingSm),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          margin: const EdgeInsets.only(
+                            bottom: AppSizes.paddingSm,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
                           decoration: BoxDecoration(
-                            color: msg.isMe ? AppColors.primary : AppColors.white,
+                            color: msg.isMe
+                                ? AppColors.primary
+                                : AppColors.white,
                             borderRadius: BorderRadius.circular(16),
-                            border: msg.isMe ? null : Border.all(color: AppColors.cardBorder),
+                            border: msg.isMe
+                                ? null
+                                : Border.all(color: AppColors.cardBorder),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (!msg.isMe)
-                                Text(msg.sender, style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                                Text(
+                                  msg.sender,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               Text(
                                 msg.message,
-                                style: TextStyle(color: msg.isMe ? AppColors.white : AppColors.textDark),
+                                style: TextStyle(
+                                  color: msg.isMe
+                                      ? AppColors.white
+                                      : AppColors.textDark,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 DateFormatter.formatTime(msg.createdAt),
-                                style: TextStyle(fontSize: 10, color: msg.isMe ? AppColors.white70 : AppColors.textLight),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: msg.isMe
+                                      ? AppColors.white70
+                                      : AppColors.textLight,
+                                ),
                               ),
                             ],
                           ),
@@ -96,6 +136,20 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
                     },
                   ),
           ),
+          if (provider.isLoadingQuickReplies)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (provider.quickReplies.isNotEmpty)
+            _QuickRepliesBar(
+              replies: provider.quickReplies,
+              onTap: _sendQuickReply,
+            ),
           Container(
             padding: const EdgeInsets.all(AppSizes.paddingSm),
             decoration: const BoxDecoration(
@@ -110,8 +164,13 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
                       controller: _messageController,
                       decoration: InputDecoration(
                         hintText: 'Type a message...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
@@ -120,7 +179,11 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
                   CircleAvatar(
                     backgroundColor: AppColors.primary,
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: AppColors.white, size: 20),
+                      icon: const Icon(
+                        Icons.send,
+                        color: AppColors.white,
+                        size: 20,
+                      ),
                       onPressed: _sendMessage,
                     ),
                   ),
@@ -129,6 +192,47 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickRepliesBar extends StatelessWidget {
+  const _QuickRepliesBar({
+    required this.replies,
+    required this.onTap,
+  });
+
+  final List<QuickReplyModel> replies;
+  final ValueChanged<QuickReplyModel> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final reply in replies) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  label: Text(reply.label),
+                  backgroundColor: AppColors.white,
+                  side: const BorderSide(color: AppColors.cardBorder),
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
+                  onPressed: () => onTap(reply),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
