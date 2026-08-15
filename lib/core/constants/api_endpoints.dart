@@ -2,9 +2,9 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  //  static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
- static const String baseUrl = 'https://api.yjeektech.com/api/v1';
- //static const String baseUrl = "https://api.yjeektech.com/api/v1/health"; 
+  // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
+  // static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
+  static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -71,6 +71,12 @@ class ApiEndpoints {
   static String notificationRead(String notificationId) =>
       '/drivers/notifications/${_seg(notificationId)}/read';
 
+  // Chat
+  static String chatQuickReplies({String peer = 'customer'}) => _query(
+        '/drivers/chat/quick-replies',
+        {'peer': peer},
+      );
+//chat update  sdfasdfsdfsdfsdfsd
   // Jobs
   static const String jobOffers = '/drivers/jobs/offers';
   static const String jobActive = '/drivers/jobs/active';
@@ -135,3 +141,8 @@ class ApiEndpoints {
     return Uri(path: path, queryParameters: params).toString();
   }
 }
+// language update by init package and ntennt 
+// Chat api is not working and endpoints or backend 
+// todays update in messages and chats. 
+// language update by init package and ntennt 
+// Chat api is not working and endpoints or backend  
