@@ -81,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     if (_offerPollTimer != null) return;
     _offerPollTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      const Duration(seconds: 2),
       (_) => _pollIncomingOffers(),
     );
     _pollIncomingOffers();
@@ -125,6 +125,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
     final dashboard = context.watch<DashboardProvider>();
+    context.watch<OrderProvider>();
     _syncOfferPolling(dashboard.isOnline);
 
     if (dashboard.isOnline) {
@@ -341,6 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               _buildOnlineHeader(context, dashboard),
               const SizedBox(height: 18),
+              _buildIncomingOfferCard(context),
               _buildOnlineAutoAcceptCard(context, dashboard),
               const SizedBox(height: 10),
               _buildOnlineScheduledCard(context, dashboard),
@@ -496,6 +498,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncomingOfferCard(BuildContext context) {
+    final offer = context.watch<OrderProvider>().currentOffer;
+    if (offer == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Material(
+        color: _onlineGreen,
+        borderRadius: BorderRadius.circular(13),
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(context, RouteNames.newRequest);
+          },
+          borderRadius: BorderRadius.circular(13),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.delivery_dining, color: Colors.white, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        L10n.tr('New delivery request'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        offer.vendorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          height: 1.05,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  offer.timerLabel,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

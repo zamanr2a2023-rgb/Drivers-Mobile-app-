@@ -4,7 +4,7 @@ class ApiEndpoints {
 
    static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
   // static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  //static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
+  // static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
