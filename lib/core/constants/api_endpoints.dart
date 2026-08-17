@@ -2,9 +2,9 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
+   static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
   // static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
+  //static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -72,7 +72,32 @@ class ApiEndpoints {
       '/drivers/notifications/${_seg(notificationId)}/read';
 
   // Chat
-  static String chatQuickReplies({String peer = 'customer'}) => _query(
+  static const String driverChats = '/drivers/chat';
+
+  /// GET /drivers/chat/{conversationId}
+  static String chatConversation(String conversationId) =>
+      '$driverChats/${_seg(conversationId)}';
+
+  /// GET + POST /drivers/chat/{conversationId}/messages
+  static String chatConversationMessages(String conversationId) =>
+      '${chatConversation(conversationId)}/messages';
+
+  /// POST /drivers/chat/{conversationId}/read
+  static String chatConversationRead(String conversationId) =>
+      '${chatConversation(conversationId)}/read';
+
+  /// POST /drivers/chat/orders/{orderId}/messages
+  static String chatOrderMessages(String orderId) =>
+      '$driverChats/orders/${_seg(orderId)}/messages';
+
+  /// GET /drivers/chat/orders/{orderId}?peer=dispatch | peer=customer
+  static String chatOrder(String orderId, {required String peer}) => _query(
+        '$driverChats/orders/${_seg(orderId)}',
+        {'peer': peer},
+      );
+
+  /// GET /drivers/chat/quick-replies?peer=dispatch | peer=customer
+  static String chatQuickReplies({required String peer}) => _query(
         '/drivers/chat/quick-replies',
         {'peer': peer},
       );
@@ -141,8 +166,4 @@ class ApiEndpoints {
     return Uri(path: path, queryParameters: params).toString();
   }
 }
-// language update by init package and ntennt 
-// Chat api is not working and endpoints or backend 
-// todays update in messages and chats. 
-// language update by init package and ntennt 
-// Chat api is not working and endpoints or backend  
+ 

@@ -70,13 +70,21 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
     if (provider.isArrivingAtCustomer) return;
 
     final job = provider.currentJobDetail;
-    if (job != null && !job.canArriveAtCustomer) {
+    if (job != null && job.isPickupPhase) {
       AppHelpers.showSnackBar(
         context,
         'Pick up the order before arriving at the customer',
         isError: true,
       );
       _redirectToPickupFlow(job);
+      return;
+    }
+
+    final arrivedStatus = job?.status.trim().toUpperCase() ?? '';
+    if (arrivedStatus == 'AT_CUSTOMER' ||
+        arrivedStatus == 'ARRIVED' ||
+        arrivedStatus == 'ARRIVED_CUSTOMER') {
+      _openCompleteDelivery();
       return;
     }
 
@@ -307,7 +315,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
                 const SizedBox(height: 12),
                 _buildArrivedButton(
                   isArriving: isArriving,
-                  enabled: job.canArriveAtCustomer,
+                  enabled: !job.isPickupPhase,
                 ),
               ],
             ),
@@ -371,30 +379,53 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                final address = job?.order.address.navigationAddress ?? '';
+                final customerName = job?.order.customer.displayName ?? '';
+                final orderId = (job?.order.displayOrderNumber.trim().isNotEmpty ??
+                        false)
+                    ? job!.order.displayOrderNumber
+                    : (job?.id ?? '');
+                Navigator.pushNamed(
+                  context,
+                  RouteNames.reportAtDropoff,
+                  arguments: {
+                    'orderId': orderId,
+                    'customerName': customerName,
+                    'address': address,
+                  },
+                );
+              },
               borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.flag_outlined,
-                  color: _reportText,
-                  size: 13,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(width: 4),
-                Text(
-                  'Report',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: _reportText,
-                  ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flag_outlined,
+                      color: _reportText,
+                      size: 13,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _reportText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -671,7 +702,7 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
         color: enabled ? _headerGreen : _headerGreen.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: (!enabled || isArriving) ? null : _arriveAtCustomer,
+          onTap: isArriving ? null : _arriveAtCustomer,
           borderRadius: BorderRadius.circular(14),
           child: Center(
             child: isArriving

@@ -1,6 +1,8 @@
 // Local order payload for the Scheduled On Track delivery flow only.
 import 'package:flutter/material.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
 
 class ScheduledOrderItem {
   const ScheduledOrderItem({
@@ -116,7 +118,15 @@ class ScheduledDeliveryOrder {
 
   String get distanceEtaLabel => '$distance · $eta';
   String get deliveryDistanceEtaLabel => '$deliveryDistance · $deliveryEta';
-  int get itemCount => items.length;
+  int get itemCount {
+    if (items.isEmpty) return 0;
+    var total = 0;
+    for (final item in items) {
+      final qty = int.tryParse(item.quantity.replaceAll(RegExp(r'[^0-9]'), ''));
+      total += qty != null && qty > 0 ? qty : 1;
+    }
+    return total;
+  }
 
   String get paymentSummary {
     if (paymentType == ScheduledPaymentType.prepaid) {
@@ -126,6 +136,139 @@ class ScheduledDeliveryOrder {
   }
 
   bool get isPrepaid => paymentType == ScheduledPaymentType.prepaid;
+
+  String get liveJobId {
+    final id = orderId.trim();
+    return id;
+  }
+
+  bool get hasLiveJobId => liveJobId.isNotEmpty && !liveJobId.startsWith('#');
+
+  ScheduledDeliveryOrder copyWith({
+    String? orderId,
+    String? vendorName,
+    String? vendorAddress,
+    String? category,
+    String? customerName,
+    String? customerPhone,
+    String? customerAddress,
+    String? scheduledWindow,
+    String? pickupDeadlineNotice,
+    String? distance,
+    String? eta,
+    List<ScheduledOrderItem>? items,
+    bool? isFragileHighValue,
+    ScheduledPaymentType? paymentType,
+    String? cashAmount,
+    bool clearCashAmount = false,
+    String? earnings,
+    String? tip,
+    String? totalDeliveryTime,
+    String? deliveryDistance,
+    String? deliveryEta,
+    String? orderTypeLabel,
+    String? cardRouteLabel,
+    String? cardStatusLine,
+  }) {
+    return ScheduledDeliveryOrder(
+      orderId: orderId ?? this.orderId,
+      vendorName: vendorName ?? this.vendorName,
+      vendorAddress: vendorAddress ?? this.vendorAddress,
+      category: category ?? this.category,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
+      customerAddress: customerAddress ?? this.customerAddress,
+      scheduledWindow: scheduledWindow ?? this.scheduledWindow,
+      pickupDeadlineNotice: pickupDeadlineNotice ?? this.pickupDeadlineNotice,
+      distance: distance ?? this.distance,
+      eta: eta ?? this.eta,
+      items: items ?? this.items,
+      isFragileHighValue: isFragileHighValue ?? this.isFragileHighValue,
+      paymentType: paymentType ?? this.paymentType,
+      cashAmount: clearCashAmount ? cashAmount : (cashAmount ?? this.cashAmount),
+      earnings: earnings ?? this.earnings,
+      tip: tip ?? this.tip,
+      totalDeliveryTime: totalDeliveryTime ?? this.totalDeliveryTime,
+      deliveryDistance: deliveryDistance ?? this.deliveryDistance,
+      deliveryEta: deliveryEta ?? this.deliveryEta,
+      orderTypeLabel: orderTypeLabel ?? this.orderTypeLabel,
+      cardRouteLabel: cardRouteLabel ?? this.cardRouteLabel,
+      cardStatusLine: cardStatusLine ?? this.cardStatusLine,
+    );
+  }
+
+  ScheduledDeliveryOrder mergedWithJob(JobDetailModel job) {
+    final order = job.order;
+    final mappedItems = order.items
+        .map(
+          (item) => ScheduledOrderItem(
+            quantity: '${item.quantity}×',
+            name: item.name.trim().isNotEmpty ? item.name.trim() : 'Item',
+          ),
+        )
+        .toList(growable: false);
+    final vendorArea = order.vendor.area.trim().isNotEmpty
+        ? order.vendor.area.trim()
+        : order.vendor.city.trim();
+    final earnings = job.driverEarnings > 0
+        ? job.driverEarnings.toStringAsFixed(3)
+        : this.earnings;
+    final tip = order.tipAmount > 0
+        ? order.tipAmount.toStringAsFixed(3)
+        : this.tip;
+    final distance = job.distanceKm > 0
+        ? '${job.distanceKm.toStringAsFixed(1)} km'
+        : this.distance;
+    final eta = job.estimatedDurationMin > 0
+        ? '~${job.estimatedDurationMin} min'
+        : this.eta;
+
+    return copyWith(
+      orderId: job.id.trim().isNotEmpty ? job.id.trim() : orderId,
+      vendorName: order.vendor.name.trim().isNotEmpty
+          ? order.vendor.name.trim()
+          : vendorName,
+      vendorAddress: vendorArea.isNotEmpty ? vendorArea : vendorAddress,
+      customerName: order.customer.displayName,
+      customerPhone: order.customer.displayPhone,
+      customerAddress: order.address.shortLabel,
+      scheduledWindow: order.windowLabel != '—'
+          ? order.windowLabel
+          : scheduledWindow,
+      distance: distance,
+      eta: eta,
+      items: mappedItems.isNotEmpty ? mappedItems : items,
+      paymentType: order.requiresCashCollection
+          ? ScheduledPaymentType.cash
+          : ScheduledPaymentType.prepaid,
+      cashAmount: order.requiresCashCollection
+          ? 'BHD ${order.cashToCollectAmount > 0 ? order.cashToCollectAmount.toStringAsFixed(3) : order.totalAmount.toStringAsFixed(3)}'
+          : null,
+      clearCashAmount: !order.requiresCashCollection,
+      earnings: earnings,
+      tip: tip,
+      totalDeliveryTime: job.estimatedDurationMin > 0
+          ? '${job.estimatedDurationMin} min'
+          : totalDeliveryTime,
+      deliveryDistance: distance,
+      deliveryEta: eta,
+      orderTypeLabel: order.fulfillmentType.trim().isNotEmpty
+          ? order.fulfillmentType.replaceAll('_', ' · ')
+          : orderTypeLabel,
+    );
+  }
+
+  ScheduledDeliveryOrder mergedWithSummary(JobCompleteSummary summary) {
+    return copyWith(
+      earnings: summary.earningsAddedLabel,
+      tip: summary.tipAmountLabel,
+      deliveryDistance: summary.distanceLabel,
+      totalDeliveryTime: summary.durationLabel,
+      orderTypeLabel: summary.deliveryTypeLabel != '—'
+          ? summary.deliveryTypeLabel
+          : orderTypeLabel,
+    );
+  }
 }
 
 class ScheduledDeliveryScale {

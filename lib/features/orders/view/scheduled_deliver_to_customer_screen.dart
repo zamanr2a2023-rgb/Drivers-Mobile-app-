@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/services/map_service.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Local UI-only “Deliver to customer” screen for scheduled On Track deliveries.
+/// “Deliver to customer” screen for scheduled On Track deliveries.
+/// Arrived calls `POST /drivers/jobs/:jobId/arrive-customer`.
 class ScheduledDeliverToCustomerScreen extends StatelessWidget {
   const ScheduledDeliverToCustomerScreen({
     super.key,
@@ -157,30 +161,44 @@ class ScheduledDeliverToCustomerScreen extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10.sw, vertical: 6.sh),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pushNamed(
+                context,
+                RouteNames.reportAtDropoff,
+                arguments: {
+                  'orderId': order.orderId,
+                  'customerName': order.customerName,
+                },
+              ),
               borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.flag_outlined,
-                  color: _reportText,
-                  size: 13.ssp,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.sw, vertical: 6.sh),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(width: 4.sw),
-                Text(
-                  'Report',
-                  style: TextStyle(
-                    fontSize: 11.ssp,
-                    fontWeight: FontWeight.w600,
-                    color: _reportText,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flag_outlined,
+                      color: _reportText,
+                      size: 13.ssp,
+                    ),
+                    SizedBox(width: 4.sw),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11.ssp,
+                        fontWeight: FontWeight.w600,
+                        color: _reportText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -341,6 +359,8 @@ class ScheduledDeliverToCustomerScreen extends StatelessWidget {
   }
 
   Widget _buildArrivedButton(BuildContext context) {
+    final isArriving = context.watch<OrderProvider>().isArrivingAtCustomer;
+
     return SizedBox(
       width: double.infinity,
       height: 52.sh,
@@ -348,26 +368,70 @@ class ScheduledDeliverToCustomerScreen extends StatelessWidget {
         color: _headerGreen,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              RouteNames.scheduledCompleteDelivery,
-              arguments: order,
-            );
-          },
+          onTap: isArriving ? null : () => _arriveAtCustomer(context),
           borderRadius: BorderRadius.circular(14),
           child: Center(
-            child: Text(
-              'Arrived at customer',
-              style: TextStyle(
-                fontSize: 16.ssp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: isArriving
+                ? SizedBox(
+                    width: 22.sw,
+                    height: 22.sw,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Arrived at customer',
+                    style: TextStyle(
+                      fontSize: 16.ssp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _arriveAtCustomer(BuildContext context) async {
+    final provider = context.read<OrderProvider>();
+    if (provider.isArrivingAtCustomer) return;
+
+    var next = order;
+    final jobId = scheduledLiveJobId(order, provider);
+
+    if (isScheduledLiveJobId(jobId)) {
+      final job = provider.currentJobDetail;
+      if (job != null && job.id == jobId && job.isPickupPhase) {
+        AppHelpers.showSnackBar(
+          context,
+          'Pick up the order before arriving at the customer',
+          isError: true,
+        );
+        return;
+      }
+
+      final success = await provider.arriveAtCustomer(jobId);
+      if (!context.mounted) return;
+
+      if (!success) {
+        AppHelpers.showSnackBar(
+          context,
+          provider.arriveCustomerError ?? 'Failed to mark arrived at customer',
+          isError: true,
+        );
+        return;
+      }
+
+      next = scheduledOrderFromJob(next, provider.currentJobDetail);
+    }
+
+    if (!context.mounted) return;
+    Navigator.pushNamed(
+      context,
+      RouteNames.scheduledCompleteDelivery,
+      arguments: next,
     );
   }
 }
