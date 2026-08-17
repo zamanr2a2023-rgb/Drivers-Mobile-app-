@@ -5,6 +5,7 @@ import 'package:yjeek_driver/features/auth/model/send_otp_result.dart';
 import 'package:yjeek_driver/features/auth/model/verify_otp_result.dart';
 import 'package:yjeek_driver/features/auth/service/auth_service.dart';
 import 'package:yjeek_driver/services/api_service.dart';
+import 'package:yjeek_driver/services/push_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   Future<void>? _restoreFuture;
@@ -51,6 +52,7 @@ class AuthProvider extends ChangeNotifier {
     _accessToken = token;
     _refreshToken = await _authService.loadRefreshToken();
     notifyListeners();
+    PushNotificationService.instance.syncToken();
   }
 
   Future<SendOtpResult?> sendOtp({
@@ -140,6 +142,7 @@ class AuthProvider extends ChangeNotifier {
       _refreshToken = result.refreshToken;
       _isLoading = false;
       notifyListeners();
+      PushNotificationService.instance.syncToken();
       return result;
     } on AccountNotRegisteredException {
       _isLoading = false;
@@ -159,6 +162,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.unregisterCurrentToken();
+    try {
+      await _authService.logoutAccount();
+    } catch (_) {
+      // Still clear local session so the user can leave the account.
+    }
     await _authService.clearSession();
     _driver = null;
     _user = null;

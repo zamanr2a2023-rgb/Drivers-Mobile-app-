@@ -15,12 +15,12 @@ Mirror the customer app (`yjeek_app`) FCM pattern. Do **not** call `POST /users/
 | In-app inbox UI (`NotificationsScreen`) | Done |
 | Inbox APIs (`GET/PATCH /drivers/notifications…`) | Done |
 | Unread badge on home (`unreadNotificationsCount`) | Done |
-| `DriverNotification` rows on job offer / suspend / admin notify | Done (DB only) |
-| Driver FCM token storage | **Missing** (`DriverProfile` has no `devices`) |
-| Backend FCM send when a driver row is created | **Missing** (customer only) |
-| Flutter `firebase_messaging` / `flutter_local_notifications` | **Missing** (`PushNotificationService` is a stub) |
-| `google-services.json` / `GoogleService-Info.plist` | **Missing** |
-| Android `POST_NOTIFICATIONS` + default FCM channel | **Missing** |
+| `DriverNotification` rows on job offer / suspend / admin notify | Done (inbox + FCM) |
+| Driver FCM token storage | Done (`DriverProfile.devices`) |
+| Backend FCM send when a driver row is created | Done (`persistDriverNotification`) |
+| Flutter `firebase_messaging` / `flutter_local_notifications` | Done |
+| `google-services.json` / `GoogleService-Info.plist` | Done (`bh.yjeek.driver`) |
+| Android `POST_NOTIFICATIONS` + default FCM channel | Done |
 
 Customer FCM on this backend already uses Firebase Admin (`initCustomerPush`). Driver can reuse the **same** Admin SDK / same Firebase project. Driver app must be a **second Android/iOS app** in that project (`bh.yjeek.driver`).
 

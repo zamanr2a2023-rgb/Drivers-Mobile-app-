@@ -8,6 +8,7 @@ import 'package:yjeek_driver/features/auth/model/account_not_registered_exceptio
 import 'package:yjeek_driver/features/auth/model/otp_screen_args.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/services/push_notification_service.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -211,6 +212,7 @@ class _OtpScreenState extends State<OtpScreen> {
         RouteNames.mainNavigation,
         (route) => false,
       );
+      PushNotificationService.instance.consumePendingOpen();
     } on AccountNotRegisteredException {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(

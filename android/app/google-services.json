@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "345308459087",
+    "project_id": "delivery-app-frontend-key",
+    "storage_bucket": "delivery-app-frontend-key.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345308459087:android:f812a364816667c8f83a3a",
+        "android_client_info": {
+          "package_name": "bh.yjeek.customer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "345308459087-op3q79nbttqorio6rij5tkkff00u2d5n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEa3x1Yu5g9gHOnU8ohgNkGkSDHFl5c20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "345308459087-op3q79nbttqorio6rij5tkkff00u2d5n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "345308459087-05t0d0dbcql135tiqq4of5ug5rojdps1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "bh.yjeek.driver"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345308459087:android:077e74313e7af1baf83a3a",
+        "android_client_info": {
+          "package_name": "bh.yjeek.driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "345308459087-op3q79nbttqorio6rij5tkkff00u2d5n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEa3x1Yu5g9gHOnU8ohgNkGkSDHFl5c20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "345308459087-op3q79nbttqorio6rij5tkkff00u2d5n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "345308459087-05t0d0dbcql135tiqq4of5ug5rojdps1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "bh.yjeek.driver"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

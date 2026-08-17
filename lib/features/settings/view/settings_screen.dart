@@ -5,6 +5,7 @@ import 'package:yjeek_driver/core/constants/app_sizes.dart';
 import 'package:yjeek_driver/core/constants/app_strings.dart';
 import 'package:yjeek_driver/core/widgets/custom_app_bar.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
+import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
@@ -69,8 +70,10 @@ class SettingsScreen extends StatelessWidget {
               leading: const Icon(Icons.logout, color: AppColors.error),
               title: Text(AppStrings.logout,
                   style: const TextStyle(color: AppColors.error)),
-              onTap: () {
-                context.read<AuthProvider>().logout();
+              onTap: () async {
+                context.read<DashboardProvider>().resetOnLogout();
+                await context.read<AuthProvider>().logout();
+                if (!context.mounted) return;
                 Navigator.pushNamedAndRemoveUntil(
                     context, RouteNames.login, (route) => false);
               },

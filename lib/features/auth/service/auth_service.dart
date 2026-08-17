@@ -165,6 +165,17 @@ class AuthService {
     _api.clearAccessToken();
   }
 
+  /// Revokes the current JWT on the server. Safe to call before clearing local session.
+  Future<void> logoutAccount() async {
+    final response = await _api.post(ApiEndpoints.accountLogout);
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty) ? message : 'Failed to log out',
+      );
+    }
+  }
+
   DriverModel toDriverModel(AuthUserModel user) {
     final profile = user.driverProfile;
     final name = user.displayName;

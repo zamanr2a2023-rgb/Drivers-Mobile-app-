@@ -15,6 +15,7 @@ import 'package:yjeek_driver/features/scheduled_orders/provider/scheduled_order_
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/app_locales.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/routes/app_navigator.dart';
 import 'package:yjeek_driver/routes/app_routes.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: L10n.tr('Yjeek Champ'),
             debugShowCheckedModeBanner: false,
+            navigatorKey: appNavigatorKey,
             theme: AppTheme.lightTheme,
             locale: settings.locale,
             supportedLocales: AppLocales.supported,
