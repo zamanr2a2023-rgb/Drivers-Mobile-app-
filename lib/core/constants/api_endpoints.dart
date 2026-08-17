@@ -67,9 +67,12 @@ class ApiEndpoints {
   // Notifications
   static const String notifications = '/drivers/notifications';
   static const String notificationsReadAll = '/drivers/notifications/read-all';
+  static const String devices = '/drivers/devices';
 
   static String notificationRead(String notificationId) =>
       '/drivers/notifications/${_seg(notificationId)}/read';
+
+  static String device(String token) => '/drivers/devices/${_seg(token)}';
 
   // Chat
   static const String driverChats = '/drivers/chat';

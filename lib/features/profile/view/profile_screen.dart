@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/app_assets.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
+import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
@@ -181,14 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
 
-    try {
-      await _profileService.logoutAccount();
-    } on ApiException {
-      // Still clear local session so the user can leave the account.
-    } catch (_) {
-      // Still clear local session so the user can leave the account.
-    }
-
+    context.read<DashboardProvider>().resetOnLogout();
     if (!mounted) return;
     await context.read<AuthProvider>().logout();
     if (!mounted) return;

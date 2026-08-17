@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
@@ -5,14 +7,32 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:yjeek_driver/app.dart';
+import 'package:yjeek_driver/firebase_options.dart';
 import 'package:yjeek_driver/services/push_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (error, stack) {
+    debugPrint('Firebase init failed: $error\n$stack');
+  }
+
   _configureAndroidPhotoPicker();
   await _configureGoogleMapsAndroid();
-  await PushNotificationService.instance.initialize();
   runApp(const MyApp());
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      await PushNotificationService.instance.start();
+    } catch (error, stack) {
+      debugPrint('Push start failed: $error\n$stack');
+    }
+  });
 }
 
 /// Use the system photo picker so gallery selection does not need

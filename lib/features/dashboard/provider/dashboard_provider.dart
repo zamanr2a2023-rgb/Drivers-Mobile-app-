@@ -126,6 +126,11 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<void> _pushCurrentLocation() async {
     if (!_isOnline) return;
+    if (ApiService.instance.accessToken == null ||
+        ApiService.instance.accessToken!.isEmpty) {
+      resetOnLogout();
+      return;
+    }
     try {
       final location = await _locationService.getCurrentMapLocation();
       if (location == null) return;
@@ -275,6 +280,14 @@ class DashboardProvider extends ChangeNotifier {
     _isOnline = value;
     _syncLocationHeartbeat();
     notifyListeners();
+  }
+
+  void resetOnLogout() {
+    _locationHeartbeat?.cancel();
+    _locationHeartbeat = null;
+    _isOnline = false;
+    _home = null;
+    _error = null;
   }
 
   String _formatBhd(double amount) {

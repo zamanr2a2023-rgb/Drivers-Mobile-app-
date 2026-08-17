@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:yjeek_driver/app_navigator.dart';
 import 'package:yjeek_driver/core/theme/app_theme.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/features/chat/provider/chat_provider.dart';
@@ -16,6 +15,7 @@ import 'package:yjeek_driver/features/scheduled_orders/provider/scheduled_order_
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/app_locales.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/routes/app_navigator.dart';
 import 'package:yjeek_driver/routes/app_routes.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
