@@ -46,8 +46,8 @@ class MyApp extends StatelessWidget {
           final _ = settings.revision;
           return MaterialApp(
             title: L10n.tr('Yjeek Champ'),
-            debugShowCheckedModeBanner: false,
             navigatorKey: appNavigatorKey,
+            debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             locale: settings.locale,
             supportedLocales: AppLocales.supported,
