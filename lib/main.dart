@@ -5,11 +5,13 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:yjeek_driver/app.dart';
+import 'package:yjeek_driver/services/push_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _configureAndroidPhotoPicker();
   await _configureGoogleMapsAndroid();
+  await PushNotificationService.instance.initialize();
   runApp(const MyApp());
 }
 

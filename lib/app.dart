@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/app_navigator.dart';
 import 'package:yjeek_driver/core/theme/app_theme.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/features/chat/provider/chat_provider.dart';
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
           final _ = settings.revision;
           return MaterialApp(
             title: L10n.tr('Yjeek Champ'),
+            navigatorKey: appNavigatorKey,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             locale: settings.locale,
