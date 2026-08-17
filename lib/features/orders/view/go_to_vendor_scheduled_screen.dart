@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/services/map_service.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Local UI-only “Go to vendor” screen for scheduled On Track deliveries.
+/// “Go to vendor” screen for scheduled On Track deliveries.
+/// Arrived calls `POST /drivers/jobs/:jobId/arrive-pickup`.
 class GoToVendorScheduledScreen extends StatelessWidget {
   const GoToVendorScheduledScreen({
     super.key,
@@ -330,6 +334,8 @@ class GoToVendorScheduledScreen extends StatelessWidget {
   }
 
   Widget _buildArrivedButton(BuildContext context) {
+    final isArriving = context.watch<OrderProvider>().isArrivingAtPickup;
+
     return SizedBox(
       width: double.infinity,
       height: 52.sh,
@@ -337,28 +343,67 @@ class GoToVendorScheduledScreen extends StatelessWidget {
         color: _headerGreen,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: () => _openSecurePickup(context),
+          onTap: isArriving ? null : () => _arriveAtVendor(context),
           borderRadius: BorderRadius.circular(14),
           child: Center(
-            child: Text(
-              'Arrived at Vendor',
-              style: TextStyle(
-                fontSize: 15.ssp,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
+            child: isArriving
+                ? SizedBox(
+                    width: 22.sw,
+                    height: 22.sw,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    'Arrived at Vendor',
+                    style: TextStyle(
+                      fontSize: 15.ssp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
     );
   }
 
-  void _openSecurePickup(BuildContext context) {
+  Future<void> _arriveAtVendor(BuildContext context) async {
+    final provider = context.read<OrderProvider>();
+    if (provider.isArrivingAtPickup) return;
+
+    var next = order;
+    final jobId = scheduledLiveJobId(order, provider);
+
+    if (isScheduledLiveJobId(jobId)) {
+      final success = await provider.arriveAtPickup(jobId);
+      if (!context.mounted) return;
+
+      if (!success) {
+        await provider.loadJobDetail(jobId);
+        if (!context.mounted) return;
+        final job = provider.currentJobDetail;
+        final alreadyThere = job != null &&
+            (job.isAtVendor || job.canArriveAtCustomer || !job.isPickupPhase);
+        if (!alreadyThere) {
+          AppHelpers.showSnackBar(
+            context,
+            provider.arrivePickupError ?? 'Failed to mark arrived at pickup',
+            isError: true,
+          );
+          return;
+        }
+      }
+
+      next = scheduledOrderFromJob(next, provider.currentJobDetail);
+    }
+
+    if (!context.mounted) return;
     Navigator.pushNamed(
       context,
-      _pickupRouteFor(order),
-      arguments: order,
+      _pickupRouteFor(next),
+      arguments: next,
     );
   }
 }

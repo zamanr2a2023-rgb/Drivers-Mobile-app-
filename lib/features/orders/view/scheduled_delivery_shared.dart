@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
+import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+
+String scheduledLiveJobId(
+  ScheduledDeliveryOrder order,
+  OrderProvider provider,
+) {
+  final fromJob = provider.currentJobDetail?.id.trim() ?? '';
+  if (fromJob.isNotEmpty && !fromJob.startsWith('#')) return fromJob;
+  return order.liveJobId;
+}
+
+bool isScheduledLiveJobId(String jobId) =>
+    jobId.isNotEmpty && !jobId.startsWith('#');
+
+ScheduledDeliveryOrder scheduledOrderFromJob(
+  ScheduledDeliveryOrder order,
+  JobDetailModel? job,
+) {
+  if (job == null) return order;
+  return order.mergedWithJob(job);
+}
 
 void scheduledHandleBottomNavTap(BuildContext context, int index) {
   switch (index) {

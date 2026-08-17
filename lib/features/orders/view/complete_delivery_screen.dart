@@ -315,30 +315,45 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pushNamed(
+                context,
+                RouteNames.reportAtDropoff,
+                arguments: {
+                  'orderId': _orderLabel(job),
+                  'customerName': _customerLabel(job),
+                  'address': job?.order.address.navigationAddress ?? '',
+                },
+              ),
               borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.flag_outlined,
-                  color: _reportText,
-                  size: 13.sp,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(width: 4.w),
-                Text(
-                  'Report',
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: _reportText,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flag_outlined,
+                      color: _reportText,
+                      size: 13.sp,
+                    ),
+                    SizedBox(width: 4.w),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                        color: _reportText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],

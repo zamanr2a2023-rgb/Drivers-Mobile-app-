@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Local UI-only “Scheduled pickup” screen (Go to vendor → Arrived).
+/// Scheduled pickup screen (Go to vendor → Arrived).
+/// Confirm calls upload + `POST /drivers/jobs/:jobId/confirm-pickup`.
 class ScheduledPickupScreen extends StatefulWidget {
   const ScheduledPickupScreen({
     super.key,
@@ -38,8 +42,34 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
   bool _hasPickupPhoto = false;
   Uint8List? _pickupPhotoBytes;
   final ImagePicker _imagePicker = ImagePicker();
+  late ScheduledDeliveryOrder _order;
 
-  ScheduledDeliveryOrder get order => widget.order;
+  ScheduledDeliveryOrder get order => _order;
+
+  @override
+  void initState() {
+    super.initState();
+    _order = widget.order;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadJobDetails());
+  }
+
+  Future<void> _loadJobDetails() async {
+    final provider = context.read<OrderProvider>();
+    final jobId = _thisJobId(provider);
+    if (!isScheduledLiveJobId(jobId)) return;
+
+    await provider.loadJobDetail(jobId);
+    if (!mounted) return;
+    final job = provider.currentJobDetail;
+    if (job == null || job.id != jobId) return;
+    setState(() => _order = _order.mergedWithJob(job));
+  }
+
+  String _thisJobId(OrderProvider provider) {
+    final fromOrder = _order.liveJobId;
+    if (isScheduledLiveJobId(fromOrder)) return fromOrder;
+    return scheduledLiveJobId(_order, provider);
+  }
 
   bool get _canConfirm =>
       _itemsVerified && _packagingVerified && _hasPickupPhoto;
@@ -105,13 +135,126 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
     }
   }
 
-  void _confirmPickup() {
+  Future<void> _confirmPickup() async {
     if (!_canConfirm) return;
+
+    final provider = context.read<OrderProvider>();
+    if (provider.isConfirmingPickup || provider.isArrivingAtPickup) return;
+
+    final photoBytes = _pickupPhotoBytes;
+    if (photoBytes == null) return;
+
+    var next = _order;
+    final jobId = _thisJobId(provider);
+
+    if (isScheduledLiveJobId(jobId)) {
+      final arrived = await _ensureArrivedAtVendor(provider, jobId);
+      if (!mounted) return;
+      if (!arrived) {
+        AppHelpers.showSnackBar(
+          context,
+          provider.arrivePickupError ??
+              'Arrive at the restaurant before confirming pickup',
+          isError: true,
+        );
+        return;
+      }
+
+      final result = await provider.confirmPickup(
+        jobId: jobId,
+        pickupPhotoBytes: photoBytes,
+      );
+      if (!mounted) return;
+
+      if (result == null) {
+        final retryArrive = _isArriveFirstError(provider.confirmPickupError);
+        if (retryArrive) {
+          final arrivedAgain = await provider.arriveAtPickup(jobId);
+          if (!mounted) return;
+          if (arrivedAgain || _jobAllowsConfirm(provider, jobId)) {
+            final retry = await provider.confirmPickup(
+              jobId: jobId,
+              pickupPhotoBytes: photoBytes,
+            );
+            if (!mounted) return;
+            if (retry != null) {
+              next = _order.mergedWithJob(retry);
+              AppHelpers.showSnackBar(
+                context,
+                retry.progressLabel.isNotEmpty
+                    ? retry.progressLabel
+                    : 'Pickup confirmed',
+              );
+              Navigator.pushNamed(
+                context,
+                RouteNames.scheduledDeliverToCustomer,
+                arguments: next,
+              );
+              return;
+            }
+          }
+        }
+
+        AppHelpers.showSnackBar(
+          context,
+          provider.confirmPickupError ?? 'Failed to confirm pickup',
+          isError: true,
+        );
+        return;
+      }
+
+      next = _order.mergedWithJob(result);
+      AppHelpers.showSnackBar(
+        context,
+        result.progressLabel.isNotEmpty
+            ? result.progressLabel
+            : 'Pickup confirmed',
+      );
+    }
+
+    if (!mounted) return;
     Navigator.pushNamed(
       context,
       RouteNames.scheduledDeliverToCustomer,
-      arguments: order,
+      arguments: next,
     );
+  }
+
+  Future<bool> _ensureArrivedAtVendor(
+    OrderProvider provider,
+    String jobId,
+  ) async {
+    var job = provider.currentJobDetail;
+    if (job == null || job.id != jobId) {
+      await provider.loadJobDetail(jobId);
+      if (!mounted) return false;
+      job = provider.currentJobDetail;
+    }
+
+    if (_jobAllowsConfirm(provider, jobId)) return true;
+
+    final success = await provider.arriveAtPickup(jobId);
+    if (!mounted) return false;
+    if (success) return true;
+
+    await provider.loadJobDetail(jobId);
+    if (!mounted) return false;
+    return _jobAllowsConfirm(provider, jobId);
+  }
+
+  bool _jobAllowsConfirm(OrderProvider provider, String jobId) {
+    final job = provider.currentJobDetail;
+    if (job == null || job.id != jobId) return false;
+    if (job.isAtVendor) return true;
+    if (job.canArriveAtCustomer) return true;
+    if (!job.isPickupPhase) return true;
+    return false;
+  }
+
+  bool _isArriveFirstError(String? message) {
+    final text = (message ?? '').toLowerCase();
+    return text.contains('arrive at the restaurant') ||
+        text.contains('before confirming pickup');
   }
 
   @override
@@ -268,6 +411,9 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
 
   Widget _buildVerifyItemsCard() {
     final items = order.items;
+    final isLoadingItems =
+        context.watch<OrderProvider>().isLoadingJobDetail && items.isEmpty;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.sw, 14.sh, 14.sw, 14.sh),
@@ -289,10 +435,21 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
             ),
           ),
           SizedBox(height: 14.sh),
-          for (var i = 0; i < items.length; i++) ...[
-            _buildItemRow(item: items[i]),
-            if (i < items.length - 1) SizedBox(height: 12.sh),
-          ],
+          if (items.isEmpty)
+            Text(
+              isLoadingItems ? 'Loading items…' : 'No items listed',
+              style: TextStyle(
+                fontSize: 13.ssp,
+                fontWeight: FontWeight.w500,
+                color: _textMuted,
+                height: 1.3,
+              ),
+            )
+          else
+            for (var i = 0; i < items.length; i++) ...[
+              _buildItemRow(item: items[i]),
+              if (i < items.length - 1) SizedBox(height: 12.sh),
+            ],
         ],
       ),
     );
@@ -542,8 +699,13 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
   }
 
   Widget _buildConfirmButton() {
+    final isConfirming = context.watch<OrderProvider>().isConfirmingPickup;
+    final isArriving = context.watch<OrderProvider>().isArrivingAtPickup;
+    final busy = isConfirming || isArriving;
+    final enabled = _canConfirm && !busy;
+
     return Opacity(
-      opacity: _canConfirm ? 1 : 0.45,
+      opacity: enabled || busy ? 1 : 0.45,
       child: SizedBox(
         width: double.infinity,
         height: 52.sh,
@@ -551,20 +713,29 @@ class _ScheduledPickupScreenState extends State<ScheduledPickupScreen> {
           color: _headerGreen,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
-            onTap: _canConfirm ? _confirmPickup : null,
+            onTap: enabled ? _confirmPickup : null,
             borderRadius: BorderRadius.circular(14),
             child: Center(
-              child: Text(
-                'Confirm pickup & start delivery',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15.ssp,
-                  fontWeight: FontWeight.w700,
-                  color: _white,
-                  height: 1.2,
-                ),
-              ),
+              child: busy
+                  ? SizedBox(
+                      width: 22.sw,
+                      height: 22.sw,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: _white,
+                      ),
+                    )
+                  : Text(
+                      'Confirm pickup & start delivery',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.ssp,
+                        fontWeight: FontWeight.w700,
+                        color: _white,
+                        height: 1.2,
+                      ),
+                    ),
             ),
           ),
         ),
