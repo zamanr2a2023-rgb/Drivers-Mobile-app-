@@ -128,8 +128,26 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                               context.read<OrderProvider>().loadJobOffers(),
                           onAccept: offer == null
                               ? null
-                              : () {
-                                  context.read<OrderProvider>().acceptOrder();
+                              : () async {
+                                  final provider =
+                                      context.read<OrderProvider>();
+                                  final result =
+                                      await provider.acceptJob(offer.id);
+                                  if (!context.mounted) return;
+
+                                  if (result == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          provider.acceptJobError ??
+                                              'Failed to accept job',
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
                                   Navigator.pushNamed(
                                     context,
                                     RouteNames.orderDeliveryNewRequest,

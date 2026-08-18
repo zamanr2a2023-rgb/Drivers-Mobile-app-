@@ -39,7 +39,7 @@ import 'package:yjeek_driver/features/orders/view/cash_delivery_completed_screen
 import 'package:yjeek_driver/features/orders/view/complete_delivery_screen.dart';
 import 'package:yjeek_driver/features/orders/view/delivery_completed_screen.dart';
 import 'package:yjeek_driver/features/orders/view/confirm_pickup_screen.dart';
-import 'package:yjeek_driver/features/orders/view/go_to_customer_screen.dart';
+import 'package:yjeek_driver/features/orders/view/deliver_to_customer_screen.dart';
 import 'package:yjeek_driver/features/orders/view/go_to_restaurant_screen.dart';
 import 'package:yjeek_driver/features/orders/view/go_to_vendor_scheduled_screen.dart';
 import 'package:yjeek_driver/features/orders/view/luxury_delivery_completed_screen.dart';
@@ -224,7 +224,17 @@ class AppRoutes {
           ),
         );
       case RouteNames.deliverToCustomer:
-        return _page(const GoToCustomerScreen());
+        final jobId = settings.arguments as String? ?? '';
+        return MaterialPageRoute(
+          builder: (context) => DeliverToCustomerScreen(
+            jobId: jobId,
+            onBack: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+        );
       case RouteNames.cashCompleteDelivery:
         return _page(const CashCompleteDeliveryScreen());
       case RouteNames.cashDeliveryCompleted:
