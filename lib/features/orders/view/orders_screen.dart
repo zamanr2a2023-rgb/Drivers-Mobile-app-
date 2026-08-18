@@ -14,6 +14,7 @@ import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart'
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Orders screen — Instant + Scheduled tabs.
@@ -72,6 +73,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     _segment = widget.initialSegment.clamp(0, 1);
     OrdersNavSignal.pendingSegment.addListener(_onNavSignal);
+    TabRefreshSignal.ticks[TabRefreshSignal.orders].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeNavSignal();
       if (!mounted) return;
@@ -456,7 +458,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     OrdersNavSignal.pendingSegment.removeListener(_onNavSignal);
+    TabRefreshSignal.ticks[TabRefreshSignal.orders].removeListener(_onTabRefresh);
     super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (!mounted) return;
+    _refreshCurrentBoard();
+  }
+
+  Future<void> _refreshCurrentBoard() async {
+    if (_segment == 0) {
+      await context.read<OrderProvider>().loadInstantJobsBoard();
+      return;
+    }
+    _loadScheduledFilter(_scheduledFilter);
   }
 
   void _onNavSignal() => _consumeNavSignal();

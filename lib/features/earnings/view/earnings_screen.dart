@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE1 · Earnings
@@ -58,6 +59,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.earnings].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_selectedPeriod == 0) {
@@ -66,8 +68,31 @@ class _EarningsScreenState extends State<EarningsScreen> {
     });
   }
 
-  Future<void> _ensureTodayLoaded() async {
-    if (_hasTodayData || _isLoadingToday) return;
+  @override
+  void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.earnings]
+        .removeListener(_onTabRefresh);
+    super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (!mounted) return;
+    _reloadCurrentPeriod();
+  }
+
+  Future<void> _reloadCurrentPeriod() {
+    switch (_selectedPeriod) {
+      case 1:
+        return _ensureWeeklyLoaded(force: true);
+      case 2:
+        return _ensureMonthlyLoaded(force: true);
+      default:
+        return _ensureTodayLoaded(force: true);
+    }
+  }
+
+  Future<void> _ensureTodayLoaded({bool force = false}) async {
+    if ((!force && _hasTodayData) || _isLoadingToday) return;
 
     setState(() => _isLoadingToday = true);
     try {
@@ -119,8 +144,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
     }
   }
 
-  Future<void> _ensureWeeklyLoaded() async {
-    if (_hasWeeklyData || _isLoadingWeekly) return;
+  Future<void> _ensureWeeklyLoaded({bool force = false}) async {
+    if ((!force && _hasWeeklyData) || _isLoadingWeekly) return;
 
     setState(() => _isLoadingWeekly = true);
     try {
@@ -171,8 +196,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
     }
   }
 
-  Future<void> _ensureMonthlyLoaded() async {
-    if (_hasMonthlyData || _isLoadingMonthly) return;
+  Future<void> _ensureMonthlyLoaded({bool force = false}) async {
+    if ((!force && _hasMonthlyData) || _isLoadingMonthly) return;
 
     setState(() => _isLoadingMonthly = true);
     try {
@@ -244,9 +269,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: Column(
+              child: RefreshIndicator(
+                color: const Color(0xFF4CAF50),
+                onRefresh: _reloadCurrentPeriod,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSegmentedControl(),
@@ -261,6 +290,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),

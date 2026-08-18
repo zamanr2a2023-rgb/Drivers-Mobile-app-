@@ -9,6 +9,7 @@ import 'package:yjeek_driver/features/performance/view/performance_screen.dart';
 import 'package:yjeek_driver/features/profile/view/profile_screen.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -60,7 +61,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          TabRefreshSignal.refresh(index);
+        },
       ),
     );
   }

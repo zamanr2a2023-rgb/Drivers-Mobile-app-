@@ -10,6 +10,7 @@ import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Home UI matched to Figma references.
@@ -61,6 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.home].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().loadDashboard();
     });
@@ -68,8 +70,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.home].removeListener(_onTabRefresh);
     _offerPollTimer?.cancel();
     super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (!mounted) return;
+    context.read<DashboardProvider>().loadDashboard();
+    _pollIncomingOffers();
   }
 
   void _syncOfferPolling(bool online) {

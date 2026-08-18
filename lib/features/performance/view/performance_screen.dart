@@ -6,6 +6,7 @@ import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE2 · Performance
@@ -35,9 +36,22 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.performance]
+        .addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadPerformance();
     });
+  }
+
+  @override
+  void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.performance]
+        .removeListener(_onTabRefresh);
+    super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (mounted) _loadPerformance();
   }
 
   Future<void> _loadPerformance() async {
@@ -126,9 +140,13 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: Column(
+              child: RefreshIndicator(
+                color: const Color(0xFF4CAF50),
+                onRefresh: _loadPerformance,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: Column(
                   children: [
                     _buildRpiCard(
                       rpiScore: rpiScore,
@@ -184,6 +202,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),

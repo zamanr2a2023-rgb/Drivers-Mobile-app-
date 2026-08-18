@@ -13,6 +13,7 @@ import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// DE4 · Account
@@ -67,9 +68,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.account].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAccount();
     });
+  }
+
+  @override
+  void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.account]
+        .removeListener(_onTabRefresh);
+    super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (mounted) _loadAccount();
   }
 
   Future<void> _loadAccount() async {
@@ -214,9 +227,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: Column(
+              child: RefreshIndicator(
+                color: const Color(0xFF4CAF50),
+                onRefresh: _loadAccount,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: Column(
                   children: [
                     _buildProfileCard(),
                     const SizedBox(height: 12),
@@ -230,6 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),
