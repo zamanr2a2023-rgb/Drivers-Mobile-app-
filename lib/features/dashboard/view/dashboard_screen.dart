@@ -647,19 +647,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: dashboard.isUpdatingAutoAccept
                     ? null
                     : () async {
+                        final current = context
+                            .read<DashboardProvider>()
+                            .isAutoAcceptEnabled;
                         final ok = await context
                             .read<DashboardProvider>()
-                            .setAutoAcceptEnabled(true);
+                            .setAutoAcceptEnabled(!current);
                         if (!context.mounted) return;
+                        final nowEnabled = context
+                            .read<DashboardProvider>()
+                            .isAutoAcceptEnabled;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
                               ok
-                                  ? L10n.tr('Auto-Accept enabled')
+                                  ? (nowEnabled
+                                      ? L10n.tr('Auto-Accept enabled')
+                                      : L10n.tr('Auto-Accept disabled'))
                                   : (context
                                           .read<DashboardProvider>()
                                           .error ??
-                                      L10n.tr('Could not enable Auto-Accept')),
+                                      L10n.tr('Could not update Auto-Accept')),
                             ),
                             behavior: SnackBarBehavior.floating,
                           ),
@@ -671,7 +679,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 32,
                   child: Center(
                     child: Text(
-                      L10n.tr('Enable'),
+                      dashboard.isAutoAcceptEnabled
+                          ? L10n.tr('Disable')
+                          : L10n.tr('Enable'),
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,

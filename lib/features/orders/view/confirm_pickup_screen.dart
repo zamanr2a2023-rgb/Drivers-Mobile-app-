@@ -199,7 +199,8 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
         : widget.args.orderId.trim();
 
     if (jobId.isEmpty || jobId.startsWith('#')) {
-      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer,
+          arguments: jobId);
       return;
     }
 
@@ -216,7 +217,8 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
             ? result.progressLabel
             : 'Pickup confirmed',
       );
-      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer,
+          arguments: jobId);
       return;
     }
 

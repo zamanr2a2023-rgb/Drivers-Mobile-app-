@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/go_to_restaurant_screen.dart';
 import 'package:yjeek_driver/features/orders/view/reject_scheduled_order_screen.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
@@ -52,11 +55,6 @@ class OrderDeliveryNewRequestScreen extends StatefulWidget {
   static const Color _declineText = Color(0xFF6B7B6E);
 
   static const String _timerText = '0:30';
-  static const String _orderId = '#YJK-...41';
-  static const String _restaurantName = 'The Green Kitchen';
-  static const String _pickupLocation = 'Seef District';
-  static const String _pickupDistance = '1.1 km';
-  static const String _pickupEta = '~5 min';
 
   @override
   State<OrderDeliveryNewRequestScreen> createState() =>
@@ -67,6 +65,65 @@ class _OrderDeliveryNewRequestScreenState
     extends State<OrderDeliveryNewRequestScreen> {
   bool _showRejectScreen = false;
 
+  JobDetailModel? get _job =>
+      context.read<OrderProvider>().currentJobDetail;
+
+  String get _jobId => _job?.id ?? '';
+  String get _orderId => _job?.order.displayOrderNumber ?? '#—';
+  String get _restaurantName =>
+      _job?.order.vendor.name.trim().isNotEmpty == true
+          ? _job!.order.vendor.name.trim()
+          : 'Restaurant';
+  String get _pickupLocation {
+    final j = _job;
+    if (j == null) return '—';
+    final area = j.order.vendor.area.trim();
+    if (area.isNotEmpty) return area;
+    return j.order.vendor.city.trim().isNotEmpty
+        ? j.order.vendor.city.trim()
+        : '—';
+  }
+
+  String get _pickupDistance => _job != null && _job!.distanceKm > 0
+      ? '${_job!.distanceKm.toStringAsFixed(1)} km'
+      : '—';
+  String get _pickupEta => _job != null && _job!.estimatedDurationMin > 0
+      ? '~${_job!.estimatedDurationMin} min'
+      : '—';
+  String get _earningsLabel => _job != null && _job!.driverEarnings > 0
+      ? 'BHD ${_job!.driverEarnings.toStringAsFixed(3)}'
+      : 'BHD 0.000';
+  String get _distanceKmLabel =>
+      _job != null && _job!.distanceKm > 0
+          ? '${_job!.distanceKm.toStringAsFixed(1)} km'
+          : '—';
+  String get _etaCategoryLabel {
+    final j = _job;
+    if (j == null) return '';
+    final parts = <String>[];
+    if (j.estimatedDurationMin > 0) parts.add('~${j.estimatedDurationMin} min');
+    final type = j.order.fulfillmentType.trim();
+    if (type.isNotEmpty) parts.add(type);
+    return parts.isEmpty ? '' : parts.join(' · ');
+  }
+
+  String get _dropoffLabel {
+    final j = _job;
+    if (j == null) return '—';
+    return j.order.address.shortLabel;
+  }
+
+  String get _customerName {
+    final j = _job;
+    if (j == null) return 'Customer';
+    return j.order.customer.displayName;
+  }
+
+  bool get _isCash => _job?.requiresCashCollection ?? false;
+
+  String get _cashCollectLabel =>
+      _job?.order.cashCollectLabel ?? 'Collect cash on delivery';
+
   void _openReject() {
     setState(() => _showRejectScreen = true);
   }
@@ -76,7 +133,16 @@ class _OrderDeliveryNewRequestScreenState
   }
 
   void _submitReject(String reason, String note) {
+    final jobId = _jobId;
+    if (jobId.isNotEmpty && !jobId.startsWith('#')) {
+      context.read<OrderProvider>().declineJob(
+            jobId: jobId,
+            reason: reason,
+            note: note,
+          );
+    }
     setState(() => _showRejectScreen = false);
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
   }
 
   void _handleBottomNavTap(BuildContext context, int index) {
@@ -110,11 +176,13 @@ class _OrderDeliveryNewRequestScreenState
 
   @override
   Widget build(BuildContext context) {
+    context.watch<OrderProvider>();
+
     if (_showRejectScreen) {
       return Scaffold(
         backgroundColor: const Color(0xFFF5F5F5),
         body: RejectScheduledOrderScreen(
-          orderId: OrderDeliveryNewRequestScreen._orderId,
+          orderId: _orderId,
           onBack: _closeReject,
           onKeepOrder: _closeReject,
           onSubmitDecline: _submitReject,
@@ -166,24 +234,28 @@ class _OrderDeliveryNewRequestScreenState
                           Transform.translate(
                             offset: const Offset(0, -16),
                             child: _DetailsPanel(
+                              earningsLabel: _earningsLabel,
+                              distanceKmLabel: _distanceKmLabel,
+                              etaCategoryLabel: _etaCategoryLabel,
+                              restaurantName: _restaurantName,
+                              pickupSubtitle:
+                                  'Pickup · $_pickupLocation',
+                              customerName: _customerName,
+                              dropoffSubtitle:
+                                  'Drop-off · $_dropoffLabel',
+                              isCash: _isCash,
+                              cashCollectLabel: _cashCollectLabel,
                               onDecline: _openReject,
                               onAccept: () {
                                 Navigator.pushNamed(
                                   context,
                                   RouteNames.goToRestaurant,
                                   arguments: GoToRestaurantArgs(
-                                    orderId:
-                                        OrderDeliveryNewRequestScreen._orderId,
-                                    restaurantName:
-                                        OrderDeliveryNewRequestScreen
-                                            ._restaurantName,
-                                    pickupLocation:
-                                        OrderDeliveryNewRequestScreen
-                                            ._pickupLocation,
-                                    distance: OrderDeliveryNewRequestScreen
-                                        ._pickupDistance,
-                                    estimatedTime: OrderDeliveryNewRequestScreen
-                                        ._pickupEta,
+                                    orderId: _jobId,
+                                    restaurantName: _restaurantName,
+                                    pickupLocation: _pickupLocation,
+                                    distance: _pickupDistance,
+                                    estimatedTime: _pickupEta,
                                   ),
                                 );
                               },
@@ -218,10 +290,28 @@ class _DeliveryMapSection extends StatelessWidget {
 
 class _DetailsPanel extends StatelessWidget {
   const _DetailsPanel({
+    required this.earningsLabel,
+    required this.distanceKmLabel,
+    required this.etaCategoryLabel,
+    required this.restaurantName,
+    required this.pickupSubtitle,
+    required this.customerName,
+    required this.dropoffSubtitle,
+    required this.isCash,
+    required this.cashCollectLabel,
     required this.onDecline,
     required this.onAccept,
   });
 
+  final String earningsLabel;
+  final String distanceKmLabel;
+  final String etaCategoryLabel;
+  final String restaurantName;
+  final String pickupSubtitle;
+  final String customerName;
+  final String dropoffSubtitle;
+  final bool isCash;
+  final String cashCollectLabel;
   final VoidCallback onDecline;
   final VoidCallback onAccept;
 
@@ -247,11 +337,22 @@ class _DetailsPanel extends StatelessWidget {
             SizedBox(height: 14.h),
             const _RequestHeader(),
             SizedBox(height: 14.h),
-            const _PriceAndDistance(),
+            _PriceAndDistance(
+              earningsLabel: earningsLabel,
+              distanceKmLabel: distanceKmLabel,
+              etaCategoryLabel: etaCategoryLabel,
+            ),
             SizedBox(height: 14.h),
-            const _RouteInfoCard(),
-            SizedBox(height: 12.h),
-            const _CashCard(),
+            _RouteInfoCard(
+              restaurantName: restaurantName,
+              pickupSubtitle: pickupSubtitle,
+              customerName: customerName,
+              dropoffSubtitle: dropoffSubtitle,
+            ),
+            if (isCash) ...[
+              SizedBox(height: 12.h),
+              _CashCard(cashCollectLabel: cashCollectLabel),
+            ],
             SizedBox(height: 16.h),
             _ActionButtons(
               onDecline: onDecline,
@@ -318,11 +419,19 @@ class _RequestHeader extends StatelessWidget {
 }
 
 class _PriceAndDistance extends StatelessWidget {
-  const _PriceAndDistance();
+  const _PriceAndDistance({
+    required this.earningsLabel,
+    required this.distanceKmLabel,
+    required this.etaCategoryLabel,
+  });
+
+  final String earningsLabel;
+  final String distanceKmLabel;
+  final String etaCategoryLabel;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
@@ -334,9 +443,9 @@ class _PriceAndDistance extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'BHD 2.300',
+                    earningsLabel,
                     maxLines: 1,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: OrderDeliveryNewRequestScreen._greenDark,
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
@@ -345,8 +454,8 @@ class _PriceAndDistance extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 8),
-              Padding(
+              const SizedBox(width: 8),
+              const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Text(
                   'incl. tip',
@@ -361,23 +470,23 @@ class _PriceAndDistance extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '4.2 km',
-              style: TextStyle(
+              distanceKmLabel,
+              style: const TextStyle(
                 color: OrderDeliveryNewRequestScreen._textDark,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 height: 1.15,
               ),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
-              '~18 min · Food',
-              style: TextStyle(
+              etaCategoryLabel,
+              style: const TextStyle(
                 color: OrderDeliveryNewRequestScreen._textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -392,7 +501,17 @@ class _PriceAndDistance extends StatelessWidget {
 }
 
 class _RouteInfoCard extends StatelessWidget {
-  const _RouteInfoCard();
+  const _RouteInfoCard({
+    required this.restaurantName,
+    required this.pickupSubtitle,
+    required this.customerName,
+    required this.dropoffSubtitle,
+  });
+
+  final String restaurantName;
+  final String pickupSubtitle;
+  final String customerName;
+  final String dropoffSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -403,57 +522,57 @@ class _RouteInfoCard extends StatelessWidget {
         color: OrderDeliveryNewRequestScreen._routeCardBg,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const IntrinsicHeight(
+      child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(width: 12, child: _RouteDots()),
-            SizedBox(width: 12),
+            const SizedBox(width: 12, child: _RouteDots()),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'The Green Kitchen',
+                    restaurantName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: OrderDeliveryNewRequestScreen._textDark,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Pickup · Seef District',
+                    pickupSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: OrderDeliveryNewRequestScreen._textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: 14),
+                  const SizedBox(height: 14),
                   Text(
-                    'Customer',
+                    customerName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: OrderDeliveryNewRequestScreen._textDark,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Drop-off · Adliya · 4.2 km',
+                    dropoffSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: OrderDeliveryNewRequestScreen._textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -507,7 +626,9 @@ class _Dot extends StatelessWidget {
 }
 
 class _CashCard extends StatelessWidget {
-  const _CashCard();
+  const _CashCard({required this.cashCollectLabel});
+
+  final String cashCollectLabel;
 
   static const String _cashIconAsset =
       'assets/images/cash_on_delivery_icon.png';
@@ -541,11 +662,11 @@ class _CashCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Collect cash on delivery',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -556,12 +677,12 @@ class _CashCard extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Hand the order, collect BHD 8.500',
+                  cashCollectLabel,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: OrderDeliveryNewRequestScreen._orangeText,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
