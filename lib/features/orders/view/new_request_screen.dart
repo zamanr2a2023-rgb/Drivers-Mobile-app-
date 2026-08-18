@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
@@ -59,10 +62,14 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   static const Color _boltStroke = Color(0xFFFF9800);
 
   static const String _calendarIcon = 'assets/images/calendar_jul_17.png';
+  Timer? _countdownTicker;
 
   @override
   void initState() {
     super.initState();
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<OrderProvider>().loadJobOffers();
@@ -70,10 +77,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   @override
+  void dispose() {
+    _countdownTicker?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     _NewRequestScreenScale.update(media.size);
     final orders = context.watch<OrderProvider>();
+    final dashboard = context.watch<DashboardProvider>();
     final offer = orders.currentOffer;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -124,6 +138,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                           isLoading: orders.isLoadingOffers,
                           error: orders.offersError,
                           offer: offer,
+                          autoAcceptEnabled: dashboard.isAutoAcceptEnabled,
                           onRetry: () =>
                               context.read<OrderProvider>().loadJobOffers(),
                           onAccept: offer == null
@@ -345,6 +360,7 @@ class _RequestBottomSheet extends StatelessWidget {
     required this.isLoading,
     required this.error,
     required this.offer,
+    required this.autoAcceptEnabled,
     required this.onRetry,
     required this.onAccept,
   });
@@ -353,6 +369,7 @@ class _RequestBottomSheet extends StatelessWidget {
   final bool isLoading;
   final String? error;
   final JobOfferModel? offer;
+  final bool autoAcceptEnabled;
   final VoidCallback onRetry;
   final VoidCallback? onAccept;
 
@@ -432,14 +449,17 @@ class _RequestBottomSheet extends StatelessWidget {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Center(
-                        child: SizedBox(
-                          width: 358.w,
-                          height: 35.h,
-                          child: const _AutoAcceptBanner(),
+                      if (autoAcceptEnabled)
+                        Center(
+                          child: SizedBox(
+                            width: 358.w,
+                            height: 35.h,
+                            child: _AutoAcceptBanner(
+                              timerText: activeOffer.timerLabel,
+                            ),
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: autoAcceptEnabled ? 20.h : 0),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 18.w),
                         child: _RequestHeader(timerText: activeOffer.timerLabel),
@@ -512,7 +532,9 @@ class _RequestBottomSheet extends StatelessWidget {
 }
 
 class _AutoAcceptBanner extends StatelessWidget {
-  const _AutoAcceptBanner();
+  const _AutoAcceptBanner({required this.timerText});
+
+  final String timerText;
 
   @override
   Widget build(BuildContext context) {
@@ -522,7 +544,7 @@ class _AutoAcceptBanner extends StatelessWidget {
         color: _NewRequestScreenState._greenBanner,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Row(
+      child: Row(
         children: [
           SizedBox(
             width: 16,
@@ -537,7 +559,7 @@ class _AutoAcceptBanner extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                'Auto-Accept ON · accepting automatically in 0:30',
+                'Auto-Accept ON - accepting automatically in $timerText',
                 maxLines: 1,
                 style: TextStyle(
                   color: _NewRequestScreenState._greenDark,
