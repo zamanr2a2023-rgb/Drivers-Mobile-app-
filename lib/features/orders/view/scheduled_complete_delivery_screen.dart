@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/order_flow_helpers.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
@@ -161,15 +162,15 @@ class _ScheduledCompleteDeliveryScreenState
         next = next.mergedWithSummary(summary);
       }
       AppHelpers.showSnackBar(context, result.message);
-      provider.loadScheduledOnTrackJobsBoard();
-      provider.loadScheduledCompletedJobsBoard();
     }
 
     if (!mounted) return;
-    Navigator.pushNamed(
+    await navigateToJobSuccessScreen(
       context,
-      RouteNames.scheduledDeliveryCompleted,
+      provider: provider,
+      routeName: RouteNames.scheduledDeliveryCompleted,
       arguments: next,
+      refreshScheduledBoards: isScheduledLiveJobId(jobId),
     );
   }
 

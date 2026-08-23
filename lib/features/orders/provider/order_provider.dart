@@ -468,9 +468,11 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  void clearJobDetail() {
+  void clearJobDetail({bool preserveCompleteResult = false}) {
     _currentJobDetail = null;
-    _lastCompleteResult = null;
+    if (!preserveCompleteResult) {
+      _lastCompleteResult = null;
+    }
     _contactAttempts = null;
     _lastJobReportResult = null;
     _lastReportWaitResult = null;
@@ -511,6 +513,30 @@ class OrderProvider extends ChangeNotifier {
     _isReturningSecureOrder = false;
     _isConfirmingReturn = false;
     notifyListeners();
+  }
+
+  /// Clears active job UI state after a successful complete and refreshes boards.
+  Future<void> finalizeAfterJobComplete({
+    bool refreshInstantBoard = true,
+    bool refreshScheduledBoards = false,
+  }) async {
+    clearJobDetail(preserveCompleteResult: true);
+    _currentOrder = null;
+    _newRequest = null;
+    _currentOffer = null;
+    _deliveryStep = 0;
+
+    final tasks = <Future<void>>[];
+    if (refreshInstantBoard) {
+      tasks.add(loadInstantJobsBoard());
+    }
+    if (refreshScheduledBoards) {
+      tasks.add(loadScheduledOnTrackJobsBoard());
+      tasks.add(loadScheduledCompletedJobsBoard());
+    }
+    if (tasks.isNotEmpty) {
+      await Future.wait(tasks);
+    }
   }
 
   /// `POST /drivers/jobs/:jobId/arrive-customer`
