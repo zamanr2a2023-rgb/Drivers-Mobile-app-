@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
@@ -45,22 +46,27 @@ class DeliveryCompletedScreen extends StatelessWidget {
   static const Color _successCheck = Color(0xFF2E7D32);
   static const Color _summaryBorder = Color(0xFFE0E0E0);
 
+  void _leaveAfterComplete(BuildContext context, {bool openInstant = false}) {
+    if (openInstant) {
+      OrdersNavSignal.openInstant();
+    }
+    OrdersNavSignal.closeEmbeddedDeliverFlow();
+    context.read<OrderProvider>().loadInstantJobsBoard();
+    context.read<DashboardProvider>().loadDashboard();
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      RouteNames.mainNavigation,
+      (route) => false,
+    );
+  }
+
   void _handleBottomNavTap(BuildContext context, int index) {
     switch (index) {
       case 0:
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          RouteNames.mainNavigation,
-          (route) => false,
-        );
+        _leaveAfterComplete(context);
         return;
       case 1:
-        OrdersNavSignal.openInstant();
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          RouteNames.mainNavigation,
-          (route) => false,
-        );
+        _leaveAfterComplete(context, openInstant: true);
         return;
       case 2:
         Navigator.pushNamed(context, RouteNames.earnings);
@@ -75,12 +81,7 @@ class DeliveryCompletedScreen extends StatelessWidget {
   }
 
   void _findNextOrder(BuildContext context) {
-    OrdersNavSignal.openInstant();
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      RouteNames.mainNavigation,
-      (route) => false,
-    );
+    _leaveAfterComplete(context, openInstant: true);
   }
 
   JobCompleteSummary? _summary(BuildContext context) {

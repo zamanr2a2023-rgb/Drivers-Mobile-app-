@@ -18,6 +18,13 @@ class OrdersNavSignal {
 
   static void openInstant() => pendingSegment.value = 0;
 
+  /// Resets Orders tab embedded deliver flow (`_showDeliverToCustomer`).
+  static final ValueNotifier<int> deliverFlowCloseTick = ValueNotifier(0);
+
+  static void closeEmbeddedDeliverFlow() {
+    deliverFlowCloseTick.value++;
+  }
+
   static void clear() {
     pendingSegment.value = null;
     pendingScheduledFilter.value = null;

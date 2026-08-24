@@ -5,6 +5,7 @@ import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
+import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Delivery completed success screen for scheduled deliveries.
@@ -70,8 +71,11 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
 
   void _findNextOrder(BuildContext context) {
     final provider = context.read<OrderProvider>();
-    provider.loadScheduledOnTrackJobsBoard();
-    provider.loadScheduledCompletedJobsBoard();
+    provider.finalizeAfterJobComplete(
+      refreshInstantBoard: false,
+      refreshScheduledBoards: true,
+    );
+    OrdersNavSignal.closeEmbeddedDeliverFlow();
 
     if (order.hasLiveJobId || !_isRestrictedLuxuryCompletion) {
       scheduledReturnToOnTrack(context);

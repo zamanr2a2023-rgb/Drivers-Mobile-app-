@@ -58,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Timer? _offerPollTimer;
   String? _presentedOfferId;
   bool _openingOffer = false;
+  bool? _offerPollingOnline;
 
   @override
   void initState() {
@@ -134,7 +135,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
     final dashboard = context.watch<DashboardProvider>();
-    context.watch<OrderProvider>();
     _syncOfferPolling(dashboard.isOnline);
 
     if (dashboard.isOnline) {
@@ -647,12 +647,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: dashboard.isUpdatingAutoAccept
                     ? null
                     : () async {
-                        final current = context
-                            .read<DashboardProvider>()
-                            .isAutoAcceptEnabled;
                         final ok = await context
                             .read<DashboardProvider>()
-                            .setAutoAcceptEnabled(!current);
+                            .setAutoAcceptEnabled(true);
                         if (!context.mounted) return;
                         final nowEnabled = context
                             .read<DashboardProvider>()
@@ -661,9 +658,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           SnackBar(
                             content: Text(
                               ok
-                                  ? (nowEnabled
-                                      ? L10n.tr('Auto-Accept enabled')
-                                      : L10n.tr('Auto-Accept disabled'))
+                                  ? L10n.tr('Auto-Accept enabled')
                                   : (context
                                           .read<DashboardProvider>()
                                           .error ??
@@ -679,9 +674,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 32,
                   child: Center(
                     child: Text(
-                      dashboard.isAutoAcceptEnabled
-                          ? L10n.tr('Disable')
-                          : L10n.tr('Enable'),
+                      L10n.tr('Enable'),
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,

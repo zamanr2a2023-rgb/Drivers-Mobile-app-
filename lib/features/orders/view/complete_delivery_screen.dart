@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
+import 'package:yjeek_driver/features/orders/order_flow_helpers.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -158,10 +159,12 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
 
     if (result != null) {
       AppHelpers.showSnackBar(context, result.message);
-      Navigator.pushNamed(
+      await navigateToJobSuccessScreen(
         context,
-        RouteNames.deliveryCompleted,
+        provider: provider,
+        routeName: RouteNames.deliveryCompleted,
         arguments: result,
+        refreshInstantBoard: true,
       );
       return;
     }

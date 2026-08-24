@@ -73,7 +73,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     _segment = widget.initialSegment.clamp(0, 1);
     OrdersNavSignal.pendingSegment.addListener(_onNavSignal);
+
     TabRefreshSignal.ticks[TabRefreshSignal.orders].addListener(_onTabRefresh);
+    OrdersNavSignal.deliverFlowCloseTick.addListener(_onCloseDeliverFlow);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeNavSignal();
       if (!mounted) return;
@@ -458,6 +461,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     OrdersNavSignal.pendingSegment.removeListener(_onNavSignal);
+
     TabRefreshSignal.ticks[TabRefreshSignal.orders].removeListener(_onTabRefresh);
     super.dispose();
   }
@@ -473,6 +477,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
       return;
     }
     _loadScheduledFilter(_scheduledFilter);
+
+    OrdersNavSignal.deliverFlowCloseTick.removeListener(_onCloseDeliverFlow);
+    super.dispose();
+  }
+
+  void _onCloseDeliverFlow() {
+    if (!mounted || !_showDeliverToCustomer) return;
+    setState(() {
+      _showDeliverToCustomer = false;
+      _activeJobId = '';
+    });
+
   }
 
   void _onNavSignal() => _consumeNavSignal();
