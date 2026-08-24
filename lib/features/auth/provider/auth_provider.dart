@@ -181,6 +181,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteAccount({String? reason}) async {
+    await PushNotificationService.instance.unregisterCurrentToken();
+    await _authService.deleteAccount(reason: reason);
+    await _authService.clearSession();
+    _driver = null;
+    _user = null;
+    _accessToken = null;
+    _refreshToken = null;
+    _phone = null;
+    _countryCode = null;
+    _expiresInSeconds = null;
+    _error = null;
+    _restoreFuture = null;
+    notifyListeners();
+  }
+
   /// Updates in-memory tokens after account phone change (or similar flows).
   void applyTokens({
     required String accessToken,

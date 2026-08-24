@@ -31,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingAccount = false;
   bool _isLoggingOut = false;
+  bool _isDeletingAccount = false;
 
   String _firstName = 'Ahmed';
   String _lastName = 'Khalid';
@@ -206,6 +207,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount || _isLoggingOut) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(L10n.tr('Delete account?')),
+        content: Text(
+          L10n.tr(
+            'This permanently deletes your account. Active deliveries must be finished first.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(L10n.tr('Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFC0392B),
+            ),
+            child: Text(L10n.tr('Delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingAccount = true);
+    try {
+      context.read<DashboardProvider>().resetOnLogout();
+      if (!mounted) return;
+      await context.read<AuthProvider>().deleteAccount();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        RouteNames.login,
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeletingAccount = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isDeletingAccount = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(L10n.tr('Could not delete account')),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
@@ -244,6 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildSettingsCard(),
                     const SizedBox(height: 12),
                     _buildLogoutButton(),
+                    const SizedBox(height: 12),
+                    _buildDeleteAccountLink(),
                   ],
                 ),
               ),
@@ -568,7 +632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       borderRadius: BorderRadius.circular(13),
       child: InkWell(
         borderRadius: BorderRadius.circular(13),
-        onTap: _isLoggingOut ? null : _logout,
+        onTap: (_isLoggingOut || _isDeletingAccount) ? null : _logout,
         child: Container(
           width: double.infinity,
           height: 48,
@@ -590,6 +654,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountLink() {
+    final busy = _isDeletingAccount || _isLoggingOut;
+    return GestureDetector(
+      onTap: busy ? null : _deleteAccount,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          _isDeletingAccount
+              ? L10n.tr('Deleting...')
+              : L10n.tr('Delete account'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF6B7280),
+            decoration: TextDecoration.underline,
+            decorationColor: Color(0xFF6B7280),
           ),
         ),
       ),

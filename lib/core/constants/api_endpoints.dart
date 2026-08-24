@@ -39,6 +39,7 @@ class ApiEndpoints {
   static const String accountAvatar = '/drivers/account/avatar';
   static const String accountLanguage = '/drivers/account/language';
   static const String accountLogout = '/drivers/account/logout';
+  static const String accountDelete = '/drivers/account';
 
   // Content / localization (shared backend catalog)
   static const String contentLanguages = '/content/languages';

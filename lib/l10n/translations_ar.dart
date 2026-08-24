@@ -148,6 +148,13 @@ const Map<String, String> kArabicTranslations = {
   'Verify': 'تحقّق',
   'Log out': 'تسجيل الخروج',
   'Logout': 'تسجيل الخروج',
+  'Delete account': 'حذف الحساب',
+  'Delete account?': 'حذف الحساب؟',
+  'This permanently deletes your account. Active deliveries must be finished first.':
+      'سيتم حذف حسابك نهائياً. يجب إنهاء التوصيلات النشطة أولاً.',
+  'Deleting...': 'جاري الحذف...',
+  'Delete': 'حذف',
+  'Could not delete account': 'تعذر حذف الحساب',
 
   // Common / settings
   'Driver Home': 'الرئيسية',
