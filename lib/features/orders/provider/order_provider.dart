@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
@@ -78,6 +79,9 @@ class OrderProvider extends ChangeNotifier {
   String? _confirmOrderError;
   String? _acceptJobError;
   String? _declineJobError;
+  bool _jobsBannersLoading = false;
+  String? _jobsBannersError;
+  HomeUiBannersModel? _jobsBanners;
   String? _confirmPickupError;
   String? _resendSecureCodeError;
   JobResendCodeResult? _lastResendSecureCodeResult;
@@ -125,6 +129,12 @@ class OrderProvider extends ChangeNotifier {
       _isReturningAgeRestricted || _isReturningSecureOrder;
   bool get isConfirmingReturn => _isConfirmingReturn;
   bool get isProcessingReturn => isReturningOrder || _isConfirmingReturn;
+  bool get jobsBannersLoading => _jobsBannersLoading;
+  String? get jobsBannersError => _jobsBannersError;
+
+  List<UiBannerModel> jobsBannersFor(String placementKey) =>
+      _jobsBanners?.forPlacement(placementKey) ?? const [];
+
   List<OrderModel> get orders => _orders;
   List<JobOfferModel> get offers => _offers;
   List<JobsBoardJob> get instantActiveJobs => _instantActiveJobs;
@@ -202,6 +212,23 @@ class OrderProvider extends ChangeNotifier {
   void setFilter(String filter) {
     _filter = filter;
     notifyListeners();
+  }
+
+  Future<void> loadJobsBanners() async {
+    _jobsBannersLoading = true;
+    _jobsBannersError = null;
+    notifyListeners();
+
+    try {
+      _jobsBanners = await _orderService.getJobsBanners();
+    } on ApiException catch (e) {
+      _jobsBannersError = e.message;
+    } catch (_) {
+      _jobsBannersError = 'Failed to load banners';
+    } finally {
+      _jobsBannersLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> loadJobOffers() async {

@@ -3,8 +3,8 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
-  // static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  static const String baseUrl = 'https://api.yjeektech.com/api/v1';
+   static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
+  //static const String baseUrl = 'https://api.yjeektech.com/api/v1';
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -19,6 +19,36 @@ class ApiEndpoints {
   static const String driverLocation = '/drivers/location';
   static const String autoAccept = '/drivers/settings/auto-accept';
   static const String driverSos = '/drivers/sos';
+
+  // UI banners (CMS)
+  static String uiBanners({String screen = 'home'}) => _query(
+        '/drivers/ui/banners',
+        {'screen': screen},
+      );
+
+  static String get uiBannersHome => uiBanners(screen: 'home');
+  static String get uiBannersJobs => uiBanners(screen: 'jobs');
+  static String get uiBannersEarnings => uiBanners(screen: 'earnings');
+  static String get uiBannersGlobal => uiBanners(screen: 'global');
+
+  static String uiBannersByPlacement(String placementKey) => _query(
+        '/drivers/ui/banners',
+        {'placementKey': placementKey},
+      );
+
+  // Public banners (no auth required)
+  static String publicBanners({
+    String app = 'CHAMP',
+    required String screen,
+  }) =>
+      _query('/banners', {
+        'app': app,
+        'screen': screen,
+      });
+
+  static String get publicBannersHome => publicBanners(screen: 'home');
+  static String get publicBannersJobs => publicBanners(screen: 'jobs');
+  static String get publicBannersEarnings => publicBanners(screen: 'earnings');
 
   // Earnings
   static const String earnings = '/drivers/earnings';

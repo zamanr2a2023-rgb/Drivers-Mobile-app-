@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/dashboard/view/home_cms_banner_slot.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
@@ -80,6 +81,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeNavSignal();
       if (!mounted) return;
+      context.read<OrderProvider>().loadJobsBanners();
       if (_segment == 0) {
         context.read<OrderProvider>().loadInstantJobsBoard();
       } else {
@@ -468,6 +470,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   void _onTabRefresh() {
     if (!mounted) return;
+    context.read<OrderProvider>().loadJobsBanners();
     _refreshCurrentBoard();
   }
 
@@ -627,6 +630,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                 ],
               ),
+            ),
+            HomeCmsBannerSlot(
+              placementKey: HomeCmsBannerSlot.orders,
+              showError: true,
+              banners: ordersProvider.jobsBannersFor(HomeCmsBannerSlot.orders),
+              loading: ordersProvider.jobsBannersLoading,
+              error: ordersProvider.jobsBannersError,
+              onRetry: () =>
+                  context.read<OrderProvider>().loadJobsBanners(),
             ),
             Expanded(
               child: _segment == 0

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:yjeek_driver/features/dashboard/model/home_model.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/features/dashboard/service/dashboard_service.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/services/api_service.dart';
@@ -25,6 +26,9 @@ class DashboardProvider extends ChangeNotifier {
   DriverHomeModel? _home;
   String? _error;
   Timer? _locationHeartbeat;
+  bool _bannersLoading = false;
+  String? _bannersError;
+  HomeUiBannersModel? _homeBanners;
 
   bool get isOnline => _isOnline;
   bool get isLoading => _isLoading;
@@ -35,6 +39,11 @@ class DashboardProvider extends ChangeNotifier {
           : _currentLocation;
   DriverHomeModel? get home => _home;
   String? get error => _error;
+  bool get bannersLoading => _bannersLoading;
+  String? get bannersError => _bannersError;
+
+  List<UiBannerModel> bannersFor(String placementKey) =>
+      _homeBanners?.forPlacement(placementKey) ?? const [];
 
   String get driverName => _home?.driver.displayName ?? L10n.tr('Driver');
 
@@ -93,6 +102,8 @@ class DashboardProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    unawaited(_loadHomeBanners());
+
     try {
       final homeFuture = _dashboardService.getHome();
       final locationFuture = _locationService.getCurrentLocation();
@@ -106,6 +117,25 @@ class DashboardProvider extends ChangeNotifier {
       _error = L10n.tr('Failed to load home');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadHomeBanners() => _loadHomeBanners();
+
+  Future<void> _loadHomeBanners() async {
+    _bannersLoading = true;
+    _bannersError = null;
+    notifyListeners();
+
+    try {
+      _homeBanners = await _dashboardService.getHomeBanners();
+    } on ApiException catch (e) {
+      _bannersError = e.message;
+    } catch (_) {
+      _bannersError = L10n.tr('Failed to load banners');
+    } finally {
+      _bannersLoading = false;
       notifyListeners();
     }
   }
@@ -288,6 +318,9 @@ class DashboardProvider extends ChangeNotifier {
     _isOnline = false;
     _home = null;
     _error = null;
+    _homeBanners = null;
+    _bannersError = null;
+    _bannersLoading = false;
   }
 
   String _formatBhd(double amount) {
