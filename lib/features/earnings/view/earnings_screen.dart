@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/dashboard/view/home_cms_banner_slot.dart';
+import 'package:yjeek_driver/features/earnings/provider/earnings_provider.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
@@ -62,6 +64,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
     TabRefreshSignal.ticks[TabRefreshSignal.earnings].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<EarningsProvider>().loadEarningsBanners();
       if (_selectedPeriod == 0) {
         _ensureTodayLoaded();
       }
@@ -77,6 +80,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
   void _onTabRefresh() {
     if (!mounted) return;
+    context.read<EarningsProvider>().loadEarningsBanners();
     _reloadCurrentPeriod();
   }
 
@@ -251,6 +255,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
+    final earnings = context.watch<EarningsProvider>();
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
@@ -268,10 +273,24 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
               ),
             ),
+            HomeCmsBannerSlot(
+              placementKey: HomeCmsBannerSlot.earnings,
+              showError: true,
+              banners: earnings.earningsBannersFor(HomeCmsBannerSlot.earnings),
+              loading: earnings.earningsBannersLoading,
+              error: earnings.earningsBannersError,
+              onRetry: () =>
+                  context.read<EarningsProvider>().loadEarningsBanners(),
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: const Color(0xFF4CAF50),
-                onRefresh: _reloadCurrentPeriod,
+                onRefresh: () async {
+                  await Future.wait([
+                    context.read<EarningsProvider>().loadEarningsBanners(),
+                    _reloadCurrentPeriod(),
+                  ]);
+                },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),

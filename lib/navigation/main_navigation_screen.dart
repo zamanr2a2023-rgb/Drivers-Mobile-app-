@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/app_colors.dart';
+import 'package:yjeek_driver/features/content/view/app_open_banner_popup.dart';
 import 'package:yjeek_driver/features/dashboard/view/dashboard_screen.dart';
 import 'package:yjeek_driver/features/earnings/view/earnings_screen.dart';
 import 'package:yjeek_driver/features/notifications/provider/notification_provider.dart';
@@ -35,12 +36,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     OrdersNavSignal.pendingSegment.addListener(_onOrdersNavSignal);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationProvider>().loadNotifications();
+      AppOpenBannerPopup.maybeShow(context);
     });
   }
 
   @override
   void dispose() {
     OrdersNavSignal.pendingSegment.removeListener(_onOrdersNavSignal);
+    AppOpenBannerPopup.resetSession();
     super.dispose();
   }
 

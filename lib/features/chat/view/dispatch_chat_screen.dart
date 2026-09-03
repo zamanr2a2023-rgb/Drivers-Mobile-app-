@@ -20,17 +20,36 @@ class DispatchChatScreen extends StatefulWidget {
 class _DispatchChatScreenState extends State<DispatchChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  ChatProvider? _chat;
+  int _messageCount = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadChats();
+      _loadDispatchChat();
     });
+  }
+
+  Future<void> _loadDispatchChat() async {
+    await context.read<ChatProvider>().loadChats();
+  }
+
+  Future<void> _retryThread(ChatConversationModel selected) async {
+    await context.read<ChatProvider>().openChat(selected);
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _chat = context.read<ChatProvider>();
   }
 
   @override
   void dispose() {
+    _chat?.closeChat();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -92,6 +111,15 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<ChatProvider>();
     final selected = provider.selectedChat;
+    final count = provider.messages.length;
+    if (selected == null) {
+      _messageCount = 0;
+    } else {
+      if (count > _messageCount) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      }
+      _messageCount = count;
+    }
 
     return PopScope(
       canPop: selected == null,
@@ -116,7 +144,9 @@ class _DispatchChatScreenState extends State<DispatchChatScreen> {
                 messageController: _messageController,
                 onSend: _sendMessage,
                 onQuickReply: _sendQuickReply,
-                onRetry: () => context.read<ChatProvider>().openChat(selected),
+                onRetry: () => _retryThread(selected),
+                onRetryQuickReplies: () =>
+                    context.read<ChatProvider>().loadQuickReplies(),
               ),
       ),
     );
@@ -275,6 +305,7 @@ class _ChatThreadBody extends StatelessWidget {
     required this.onSend,
     required this.onQuickReply,
     this.onRetry,
+    this.onRetryQuickReplies,
   });
 
   final ChatProvider provider;
@@ -283,6 +314,7 @@ class _ChatThreadBody extends StatelessWidget {
   final VoidCallback onSend;
   final ValueChanged<QuickReplyModel> onQuickReply;
   final Future<void> Function()? onRetry;
+  final VoidCallback? onRetryQuickReplies;
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +341,26 @@ class _ChatThreadBody extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      );
+    } else if (provider.messages.isEmpty) {
+      messagesArea = RefreshIndicator(
+        onRefresh: () async {
+          await onRetry?.call();
+        },
+        child: ListView(
+          controller: scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSizes.paddingMd),
+          children: const [
+            SizedBox(height: 80),
+            Center(
+              child: Text(
+                'No messages yet',
+                style: TextStyle(color: AppColors.textLight),
+              ),
+            ),
+          ],
         ),
       );
     } else {
@@ -382,20 +434,13 @@ class _ChatThreadBody extends StatelessWidget {
     return Column(
       children: [
         Expanded(child: messagesArea),
-        if (provider.isLoadingQuickReplies)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: SizedBox(
-              height: 22,
-              width: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          )
-        else if (provider.quickReplies.isNotEmpty)
-          _QuickRepliesBar(
-            replies: provider.quickReplies,
-            onTap: provider.isSendingMessage ? null : onQuickReply,
-          ),
+        _QuickRepliesSection(
+          isLoading: provider.isLoadingQuickReplies,
+          replies: provider.quickReplies,
+          error: provider.quickRepliesError,
+          onRetry: onRetryQuickReplies,
+          onTap: provider.isSendingMessage ? null : onQuickReply,
+        ),
         Container(
           padding: const EdgeInsets.all(AppSizes.paddingSm),
           decoration: const BoxDecoration(
@@ -450,6 +495,67 @@ class _ChatThreadBody extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _QuickRepliesSection extends StatelessWidget {
+  const _QuickRepliesSection({
+    required this.isLoading,
+    required this.replies,
+    this.error,
+    this.onRetry,
+    this.onTap,
+  });
+
+  final bool isLoading;
+  final List<QuickReplyModel> replies;
+  final String? error;
+  final VoidCallback? onRetry;
+  final ValueChanged<QuickReplyModel>? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading && replies.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: SizedBox(
+            height: 22,
+            width: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (replies.isEmpty) {
+      if (error == null || error!.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                error!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textLight,
+                ),
+              ),
+            ),
+            if (onRetry != null)
+              TextButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return _QuickRepliesBar(replies: replies, onTap: onTap);
   }
 }
 

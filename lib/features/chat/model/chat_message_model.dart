@@ -6,6 +6,7 @@ class ChatMessageModel {
     required this.createdAt,
     this.isMe = false,
     this.senderRole,
+    this.senderId,
   });
 
   final String id;
@@ -14,17 +15,19 @@ class ChatMessageModel {
   final DateTime createdAt;
   final bool isMe;
   final String? senderRole;
+  final String? senderId;
 
   factory ChatMessageModel.fromJson(
     Map<String, dynamic> json, {
     String conversationTitle = 'Dispatch',
   }) {
     final role = json['senderRole']?.toString().toUpperCase() ?? '';
+    final senderIdRaw = json['senderId']?.toString().trim() ?? '';
     final isMe = role == 'DRIVER';
     final String sender;
     if (isMe) {
       sender = 'Me';
-    } else if (role == 'DISPATCH') {
+    } else if (role == 'DISPATCH' || role == 'ADMIN') {
       sender = 'Dispatch';
     } else if (role == 'SYSTEM') {
       sender = 'System';
@@ -40,6 +43,9 @@ class ChatMessageModel {
           DateTime.now(),
       isMe: isMe,
       senderRole: role.isEmpty ? null : role,
+      senderId: senderIdRaw.isEmpty || senderIdRaw.toLowerCase() == 'null'
+          ? null
+          : senderIdRaw,
     );
   }
 }

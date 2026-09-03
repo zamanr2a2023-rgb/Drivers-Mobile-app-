@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
@@ -20,6 +21,24 @@ class OrderService {
       : _api = apiService ?? ApiService.instance;
 
   final ApiService _api;
+
+  Future<HomeUiBannersModel> getJobsBanners() async {
+    final response = await _api.get(ApiEndpoints.publicBannersJobs);
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty)
+            ? message
+            : 'Failed to load banners',
+      );
+    }
+
+    try {
+      return HomeUiBannersModel.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
 
   Future<List<JobOfferModel>> getJobOffers() async {
     final response = await _api.get(ApiEndpoints.jobOffers);

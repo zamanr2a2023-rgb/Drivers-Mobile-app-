@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
 import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
+import 'package:yjeek_driver/features/dashboard/view/home_cms_banner_slot.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
@@ -54,6 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static const Color _onlineScheduledBorder = Color(0xFFE2E8E1);
   static const Color _onlineScheduledIconBg = Color(0xFFEAF9EF);
   static const Color _onlineStatBg = Color(0xFFF3F7F2);
+  static const double _homeMapHeight = 240;
 
   Timer? _offerPollTimer;
   String? _presentedOfferId;
@@ -94,7 +96,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const Duration(seconds: 2),
       (_) => _pollIncomingOffers(),
     );
-    _pollIncomingOffers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pollIncomingOffers();
+    });
   }
 
   Future<void> _pollIncomingOffers() async {
@@ -150,17 +154,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          // Same layout as online home: GoogleMap must stay outside scrollables
-          // or Android emulator / Platform Views show blank tiles (Google logo only).
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, dashboard),
-              const SizedBox(height: 12),
-              _buildScheduledBanner(context, dashboard),
-              const SizedBox(height: 8),
-              const Expanded(child: AppGoogleMap()),
-              Padding(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, dashboard),
+                const SizedBox(height: 12),
+                const HomeCmsBannerSlot(
+                  placementKey: HomeCmsBannerSlot.top,
+                  showError: true,
+                ),
+                _buildScheduledBanner(context, dashboard),
+                _buildHomeMap(),
+                const HomeCmsBannerSlot(
+                  placementKey: HomeCmsBannerSlot.mid,
+                  height: HomeCmsBannerSlot.midHeight,
+                ),
+                Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +255,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
             ],
+            ),
           ),
         ),
       ),
@@ -332,6 +345,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildHomeMap() {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: AppGoogleMap(
+        height: _homeMapHeight,
+        handleScrollGestures: true,
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    );
+  }
+
   Widget _buildOnlineHome(
     BuildContext context,
     DashboardProvider dashboard,
@@ -346,21 +370,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: _onlineBg,
         body: SafeArea(
           bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildOnlineHeader(context, dashboard),
-              const SizedBox(height: 18),
-              _buildIncomingOfferCard(context),
-              _buildOnlineAutoAcceptCard(context, dashboard),
-              const SizedBox(height: 10),
-              _buildOnlineScheduledCard(context, dashboard),
-              const SizedBox(height: 4),
-              // Keep GoogleMap outside scrollables — iOS Platform Views often
-              // show only the Google logo (blank tiles) inside SingleChildScrollView.
-              const Expanded(child: AppGoogleMap()),
-              _buildOnlineSummary(context, dashboard),
-            ],
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildOnlineHeader(context, dashboard),
+                const SizedBox(height: 12),
+                const HomeCmsBannerSlot(
+                  placementKey: HomeCmsBannerSlot.top,
+                  showError: true,
+                ),
+                _buildIncomingOfferCard(context),
+                _buildOnlineAutoAcceptCard(context, dashboard),
+                const SizedBox(height: 10),
+                _buildOnlineScheduledCard(context, dashboard),
+                _buildHomeMap(),
+                const HomeCmsBannerSlot(
+                  placementKey: HomeCmsBannerSlot.mid,
+                  height: HomeCmsBannerSlot.midHeight,
+                ),
+                _buildOnlineSummary(context, dashboard),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         ),
       ),
