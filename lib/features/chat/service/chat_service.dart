@@ -10,9 +10,9 @@ class ChatService {
 
   final ApiService _api;
 
-  /// GET /drivers/chat
+  /// GET /drivers/chat?peer=dispatch&limit=50
   Future<List<ChatConversationModel>> getChats() async {
-    final response = await _api.get(ApiEndpoints.driverChats);
+    final response = await _api.get(ApiEndpoints.driverChatsInbox());
 
     if (response['success'] != true) {
       throw ApiException(_failureMessage(response, 'Failed to load chats'));
@@ -59,7 +59,15 @@ class ChatService {
 
     final title = conversation.title;
     final data = response['data'];
+    if (data == null) {
+      return const [];
+    }
     return _parseMessages(data, title);
+  }
+
+  /// GET /drivers/chat/orders/{orderId}?peer=dispatch
+  Future<OpenedOrderChat> getOrCreateDispatchChat(String orderId) {
+    return openOrderChat(orderId: orderId, peer: 'dispatch');
   }
 
   /// GET /drivers/chat/orders/{orderId}?peer=dispatch
@@ -146,14 +154,16 @@ class ChatService {
     return _sentMessageFromResponse(
       response,
       conversationTitle: conversationTitle,
+      fallbackBody: text,
     );
   }
 
   /// POST /drivers/chat/orders/{orderId}/messages
+  /// Body: { "body": "...", "peer": "dispatch" }
   Future<ChatMessageModel> sendOrderMessage({
     required String orderId,
     required String body,
-    String? peer,
+    String peer = 'dispatch',
     String conversationTitle = 'Dispatch',
   }) async {
     final id = orderId.trim();
@@ -166,26 +176,25 @@ class ChatService {
       throw ApiException('Message is required');
     }
 
-    final payload = <String, dynamic>{'body': text};
-    final peerValue = peer?.trim() ?? '';
-    if (peerValue.isNotEmpty) {
-      payload['peer'] = peerValue;
-    }
-
     final response = await _api.post(
       ApiEndpoints.chatOrderMessages(id),
-      body: payload,
+      body: {
+        'body': text,
+        'peer': peer.trim().isEmpty ? 'dispatch' : peer.trim(),
+      },
     );
 
     return _sentMessageFromResponse(
       response,
       conversationTitle: conversationTitle,
+      fallbackBody: text,
     );
   }
 
   ChatMessageModel _sentMessageFromResponse(
     Map<String, dynamic> response, {
     required String conversationTitle,
+    String fallbackBody = '',
   }) {
     if (response['success'] != true) {
       throw ApiException(
@@ -194,18 +203,45 @@ class ChatService {
     }
 
     final data = response['data'];
-    if (data is! Map) {
+    Map<String, dynamic>? json;
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      final nested = map['message'];
+      if (nested is Map && map['body'] == null && map['id'] == null) {
+        json = Map<String, dynamic>.from(nested);
+      } else {
+        json = map;
+      }
+    }
+
+    if (json == null && fallbackBody.isEmpty) {
       throw ApiException('Invalid response from server');
     }
 
-    return ChatMessageModel.fromJson(
-      Map<String, dynamic>.from(data),
+    final parsed = ChatMessageModel.fromJson(
+      json ?? const {},
       conversationTitle: conversationTitle,
+    );
+    if (parsed.message.isNotEmpty) return parsed;
+
+    if (fallbackBody.isEmpty) {
+      throw ApiException('Invalid response from server');
+    }
+
+    return ChatMessageModel(
+      id: parsed.id.isNotEmpty
+          ? parsed.id
+          : DateTime.now().millisecondsSinceEpoch.toString(),
+      message: fallbackBody,
+      sender: 'Me',
+      createdAt: parsed.createdAt,
+      isMe: true,
+      senderRole: 'DRIVER',
     );
   }
 
   /// POST /drivers/chat/{conversationId}/read
-  Future<void> markConversationRead(String conversationId) async {
+  Future<ChatReadModel> markConversationRead(String conversationId) async {
     final id = conversationId.trim();
     if (id.isEmpty) {
       throw ApiException('Conversation id is required');
@@ -218,12 +254,23 @@ class ChatService {
         _failureMessage(response, 'Failed to mark chat as read'),
       );
     }
+
+    final data = response['data'];
+    if (data is! Map) {
+      throw ApiException('Invalid response from server');
+    }
+
+    final result = ChatReadModel.fromJson(Map<String, dynamic>.from(data));
+    if (result.conversationId.isEmpty) {
+      throw ApiException('Invalid response from server');
+    }
+
+    return result;
   }
 
   /// GET /drivers/chat/quick-replies?peer=dispatch
-  /// GET /drivers/chat/quick-replies?peer=customer
   Future<List<QuickReplyModel>> getQuickReplies({
-    required String peer,
+    String peer = 'dispatch',
   }) async {
     final response = await _api.get(ApiEndpoints.chatQuickReplies(peer: peer));
 

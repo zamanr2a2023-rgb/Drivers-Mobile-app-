@@ -4,7 +4,7 @@ class ApiEndpoints {
 
   // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
    static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  //static const String baseUrl = 'https://api.yjeektech.com/api/v1';
+ // static const String baseUrl = 'https://api.yjeektech.com/api/v1';
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -108,6 +108,16 @@ class ApiEndpoints {
   // Chat
   static const String driverChats = '/drivers/chat';
 
+  /// GET /drivers/chat?peer=dispatch&limit=50
+  static String driverChatsInbox({
+    String peer = 'dispatch',
+    int limit = 50,
+  }) =>
+      _query(driverChats, {
+        'peer': peer,
+        'limit': '$limit',
+      });
+
   /// GET /drivers/chat/{conversationId}
   static String chatConversation(String conversationId) =>
       '$driverChats/${_seg(conversationId)}';
@@ -124,8 +134,8 @@ class ApiEndpoints {
   static String chatOrderMessages(String orderId) =>
       '$driverChats/orders/${_seg(orderId)}/messages';
 
-  /// GET /drivers/chat/orders/{orderId}?peer=dispatch | peer=customer
-  static String chatOrder(String orderId, {required String peer}) => _query(
+  /// GET /drivers/chat/orders/{orderId}?peer=dispatch
+  static String chatOrder(String orderId, {String peer = 'dispatch'}) => _query(
         '$driverChats/orders/${_seg(orderId)}',
         {'peer': peer},
       );
