@@ -86,7 +86,7 @@ class ApiEndpoints {
   static String accountDocument(String type) =>
       '/drivers/account/documents/${_seg(type)}';
 
-  /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos
+  /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos | support-evidence
   static String uploads({required String category}) => _query(
         '/uploads',
         {'category': category},
