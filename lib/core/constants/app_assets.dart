@@ -27,7 +27,6 @@ class AppAssets {
   static const String docProfilePhoto = 'assets/images/Frame (5).png';
 
   // Vehicle registration icons
-  //new update code. 
   static const String vehicleCar = 'assets/images/car.png';
   static const String vehicleBike = 'assets/images/bike (2).png';
   static const String uploadCamera = 'assets/images/camera.png';
