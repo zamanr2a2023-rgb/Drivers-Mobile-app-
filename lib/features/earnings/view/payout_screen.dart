@@ -46,6 +46,12 @@ class _PayoutScreenState extends State<PayoutScreen> {
     if (success) {
       AppHelpers.showSnackBar(context, L10n.tr('Payout requested successfully!'));
       Navigator.pop(context);
+    } else {
+      AppHelpers.showSnackBar(
+        context,
+        L10n.tr('Payout is not available'),
+        isError: true,
+      );
     }
   }
 
@@ -72,7 +78,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
                     ),
                     title: Text(L10n.tr('Bank Account')),
                     subtitle: Text(
-                      L10n.tr('**** **** **** 4521 (Placeholder)'),
+                      L10n.tr('No bank account'),
                     ),
                     trailing: const Icon(Icons.chevron_right),
                   ),

@@ -45,7 +45,10 @@ class DashboardProvider extends ChangeNotifier {
   List<UiBannerModel> bannersFor(String placementKey) =>
       _homeBanners?.forPlacement(placementKey) ?? const [];
 
-  String get driverName => _home?.driver.displayName ?? L10n.tr('Driver');
+  String get driverName {
+    final name = _home?.driver.displayName.trim() ?? '';
+    return name.isEmpty ? '—' : name;
+  }
 
   String get statusLabel =>
       _isOnline ? L10n.tr("You're online") : L10n.tr('Offline');

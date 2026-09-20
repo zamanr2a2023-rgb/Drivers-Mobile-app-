@@ -32,11 +32,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     final provider = context.watch<OrderProvider>();
     final order = provider.currentOrder;
 
-    return Scaffold(
-      appBar: const CustomAppBar(title: 'Order Details'),
-      body: provider.isLoading || order == null
-          ? const AppLoader()
-          : SingleChildScrollView(
+    Widget body;
+    if (provider.isLoading) {
+      body = const AppLoader();
+    } else if (order == null) {
+      body = const Center(child: Text('No order details'));
+    } else {
+      body = SingleChildScrollView(
               padding: const EdgeInsets.all(AppSizes.paddingMd),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,6 +62,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   _InfoTile(label: 'Drop-off', value: order.dropoffAddress, icon: Icons.location_on),
                   _InfoTile(label: 'Distance', value: AppHelpers.formatDistance(order.distance), icon: Icons.route),
                   _InfoTile(label: 'Payment', value: order.paymentStatus, icon: Icons.payment),
+                  if (order.tipAmount > 0)
+                    _InfoTile(
+                      label: 'Tip',
+                      value: 'BHD ${order.tipAmount.toStringAsFixed(3)}',
+                      icon: Icons.volunteer_activism_outlined,
+                    ),
                   _InfoTile(label: 'Created', value: DateFormatter.formatDateTime(order.createdAt), icon: Icons.access_time),
                   if (order.deliveryNotes != null)
                     _InfoTile(label: 'Notes', value: order.deliveryNotes!, icon: Icons.note_outlined),
@@ -81,7 +89,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
                 ],
               ),
-            ),
+            );
+    }
+
+    return Scaffold(
+      appBar: const CustomAppBar(title: 'Order Details'),
+      body: body,
     );
   }
 }

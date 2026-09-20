@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
-import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Delivery completed screen for restricted luxury scheduled deliveries.
 class LuxuryDeliveryCompletedScreen extends StatelessWidget {
@@ -23,35 +22,6 @@ class LuxuryDeliveryCompletedScreen extends StatelessWidget {
   static const Color _summaryBorder = Color(0xFFE0E0E0);
   static const Color _verifiedText = Color(0xFF4DB04F);
 
-  static const ScheduledDeliveryOrder _nextRestrictedLuxuryOrder =
-      ScheduledDeliveryOrder(
-    orderId: '#YJK-...52',
-    vendorName: 'Sharaf DG · Luxury counter',
-    vendorAddress: 'Seef · Bldg 210, Floor 2',
-    category: 'Luxury · high-value',
-    customerName: 'Sara A.',
-    customerPhone: '+973 3300 0000',
-    customerAddress: 'Adliya · Bldg 23, Road 2825',
-    scheduledWindow: 'Today · 6–8 PM',
-    pickupDeadlineNotice:
-        'High-value order. Collect the sealed box, confirm the tamper seal & serial before leaving.',
-    distance: '1.4 km',
-    eta: '~6 min',
-    items: [
-      ScheduledOrderItem(quantity: '1×', name: 'Sealed luxury item'),
-    ],
-    isFragileHighValue: true,
-    paymentType: ScheduledPaymentType.prepaid,
-    earnings: '4.500',
-    tip: '0.000',
-    totalDeliveryTime: '26 min',
-    deliveryDistance: '4.2 km',
-    deliveryEta: '~18 min',
-    orderTypeLabel: 'Scheduled · Luxury',
-    cardRouteLabel: 'Sharaf DG → Adliya',
-    cardStatusLine: 'Restricted high-value delivery',
-  );
-
   String get _orderTypeLabel {
     if (order.orderTypeLabel.toLowerCase().contains('luxury')) {
       return order.orderTypeLabel;
@@ -60,11 +30,7 @@ class LuxuryDeliveryCompletedScreen extends StatelessWidget {
   }
 
   void _findNextOrder(BuildContext context) {
-    Navigator.pushReplacementNamed(
-      context,
-      RouteNames.goToVendorScheduled,
-      arguments: _nextRestrictedLuxuryOrder,
-    );
+    scheduledReturnToOnTrack(context);
   }
 
   @override

@@ -639,64 +639,12 @@ class OrderService {
   }
 
   Future<List<OrderModel>> getOrders() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    final now = DateTime.now();
-    return [
-      OrderModel(
-        id: '#ORD-1001',
-        pickupAddress: 'Burger Palace, 45 Food Street',
-        dropoffAddress: '12 Oak Avenue, Apt 3B',
-        customerName: 'Sarah Ahmed',
-        vendorName: 'Burger Palace',
-        status: 'Active',
-        price: 12.50,
-        distance: 3.2,
-        createdAt: now.subtract(const Duration(minutes: 15)),
-        items: ['Classic Burger', 'Fries', 'Coke'],
-        paymentStatus: 'Paid',
-        deliveryNotes: 'Ring doorbell twice',
-      ),
-      OrderModel(
-        id: '#ORD-1002',
-        pickupAddress: 'Fresh Mart, 78 Market Road',
-        dropoffAddress: '99 Pine Street',
-        customerName: 'Mike Johnson',
-        vendorName: 'Fresh Mart',
-        status: 'Scheduled',
-        price: 18.00,
-        distance: 5.1,
-        createdAt: now.subtract(const Duration(hours: 1)),
-        items: ['Groceries Bag x2'],
-        paymentStatus: 'Paid',
-      ),
-      OrderModel(
-        id: '#ORD-1003',
-        pickupAddress: 'Pizza Hub, 22 Center Plaza',
-        dropoffAddress: '5 Elm Drive',
-        customerName: 'Lisa Chen',
-        vendorName: 'Pizza Hub',
-        status: 'Completed',
-        price: 9.75,
-        distance: 2.4,
-        createdAt: now.subtract(const Duration(hours: 3)),
-        items: ['Margherita Pizza'],
-        paymentStatus: 'Paid',
-      ),
-      OrderModel(
-        id: '#ORD-1004',
-        pickupAddress: 'Wine & Spirits, 10 Valley Road',
-        dropoffAddress: '33 Hill View',
-        customerName: 'Tom Wilson',
-        vendorName: 'Wine & Spirits',
-        status: 'Cancelled',
-        price: 15.00,
-        distance: 4.0,
-        createdAt: now.subtract(const Duration(days: 1)),
-        isRestricted: true,
-        items: ['Red Wine Bottle'],
-        paymentStatus: 'Refunded',
-      ),
-    ];
+    try {
+      final history = await getJobsHistory();
+      return history.jobs.map(_fromBoardJob).toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// Starts an age-restricted return to vendor.
@@ -848,11 +796,16 @@ class OrderService {
   }
 
   Future<OrderModel?> getOrderById(String id) async {
-    final orders = await getOrders();
+    final jobId = id.trim();
+    if (jobId.isEmpty) return null;
     try {
-      return orders.firstWhere((o) => o.id == id);
+      return _fromJobDetail(await getJobById(jobId));
     } catch (_) {
-      return orders.isNotEmpty ? orders.first : null;
+      final orders = await getOrders();
+      for (final order in orders) {
+        if (order.id == jobId) return order;
+      }
+      return null;
     }
   }
 
@@ -862,6 +815,43 @@ class OrderService {
       throw ApiException('No delivery offers available');
     }
     return _toOrderModel(offers.first);
+  }
+
+  OrderModel _fromBoardJob(JobsBoardJob job) {
+    final dropoff = job.dropoffAddress.trim().isNotEmpty
+        ? job.dropoffAddress.trim()
+        : job.dropoffArea.trim();
+    return OrderModel(
+      id: job.id,
+      pickupAddress: job.pickupArea,
+      dropoffAddress: dropoff,
+      customerName: '',
+      vendorName: job.vendorName,
+      status: job.displayStatusLabel,
+      price: job.driverEarnings,
+      distance: 0,
+      createdAt: job.completedAt ?? DateTime.now(),
+      paymentStatus: job.paymentMethod,
+      tipAmount: job.tipAmount,
+    );
+  }
+
+  OrderModel _fromJobDetail(JobDetailModel job) {
+    return OrderModel(
+      id: job.id,
+      pickupAddress: job.order.vendor.area,
+      dropoffAddress: job.order.address.shortLabel,
+      customerName: job.order.customer.displayName,
+      vendorName: job.order.vendor.name,
+      status: job.status,
+      price: job.driverEarnings,
+      distance: job.distanceKm,
+      createdAt: DateTime.now(),
+      items: job.order.items.map((item) => item.name).toList(growable: false),
+      paymentStatus: job.order.paymentStatus,
+      deliveryNotes: job.order.kitchenNote,
+      tipAmount: job.order.tipAmount,
+    );
   }
 
   OrderModel _toOrderModel(JobOfferModel offer) {
@@ -876,6 +866,7 @@ class OrderService {
       distance: offer.distanceKm,
       createdAt: DateTime.now(),
       paymentStatus: offer.paymentMethod,
+      tipAmount: offer.tipAmount,
     );
   }
 }

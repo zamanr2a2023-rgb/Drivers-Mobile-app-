@@ -140,8 +140,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasTodayData = true;
       });
     } catch (_) {
-      // Keep screen usable with existing hardcoded values (for non-today)
-      // and 0s for today until the next successful refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingToday = false);
@@ -193,7 +192,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasWeeklyData = true;
       });
     } catch (_) {
-      // Keep hardcoded values (for non-weekly UI) until the next refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingWeekly = false);
@@ -245,7 +244,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasMonthlyData = true;
       });
     } catch (_) {
-      // Keep hardcoded values (for non-monthly UI) until the next refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingMonthly = false);
@@ -374,43 +373,36 @@ class _EarningsScreenState extends State<EarningsScreen> {
     final isWeekly = _selectedPeriod == 1;
     final isMonthly = _selectedPeriod == 2;
     final totalText = isToday
-        ? (_hasTodayData ? _formatBhd3(_todayTotalEarnings) : 'BHD 86.400')
+        ? (_hasTodayData ? _formatBhd3(_todayTotalEarnings) : 'BHD 0.000')
         : (isWeekly
-            ? (_hasWeeklyData ? _formatBhd3(_weeklyTotalEarnings) : 'BHD 86.400')
+            ? (_hasWeeklyData ? _formatBhd3(_weeklyTotalEarnings) : 'BHD 0.000')
             : (isMonthly
                 ? (_hasMonthlyData
                     ? _formatBhd3(_monthlyTotalEarnings)
-                    : 'BHD 86.400')
-                : 'BHD 86.400'));
+                    : 'BHD 0.000')
+                : 'BHD 0.000'));
     final tripsText = isToday
-        ? (_hasTodayData
-            ? L10n.trParams('{count} trips', {'count': '$_todayTrips'})
-            : L10n.trParams('{count} trips', {'count': '32'}))
+        ? L10n.trParams('{count} trips',
+            {'count': '${_hasTodayData ? _todayTrips : 0}'})
         : (isWeekly
-            ? (_hasWeeklyData
-                ? L10n.trParams('{count} trips', {'count': '$_weeklyTrips'})
-                : L10n.trParams('{count} trips', {'count': '32'}))
-            : (isMonthly
-                ? (_hasMonthlyData
-                    ? L10n.trParams('{count} trips', {'count': '$_monthlyTrips'})
-                    : L10n.trParams('{count} trips', {'count': '32'}))
-                : L10n.trParams('{count} trips', {'count': '32'})));
+            ? L10n.trParams('{count} trips',
+                {'count': '${_hasWeeklyData ? _weeklyTrips : 0}'})
+            : L10n.trParams('{count} trips',
+                {'count': '${_hasMonthlyData ? _monthlyTrips : 0}'}));
     final onlineLabelText = isToday
-        ? (_hasTodayData
-            ? L10n.trParams('{duration} online',
-                {'duration': _todayOnlineDurationLabel})
-            : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
+        ? L10n.trParams('{duration} online', {
+            'duration':
+                _hasTodayData ? _todayOnlineDurationLabel : '0m',
+          })
         : (isWeekly
-            ? (_hasWeeklyData
-                ? L10n.trParams('{duration} online',
-                    {'duration': _weeklyOnlineDurationLabel})
-                : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
-            : (isMonthly
-                ? (_hasMonthlyData
-                    ? L10n.trParams('{duration} online',
-                        {'duration': _monthlyOnlineDurationLabel})
-                    : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
-                : L10n.trParams('{duration} online', {'duration': '18h 20m'})));
+            ? L10n.trParams('{duration} online', {
+                'duration':
+                    _hasWeeklyData ? _weeklyOnlineDurationLabel : '0m',
+              })
+            : L10n.trParams('{duration} online', {
+                'duration':
+                    _hasMonthlyData ? _monthlyOnlineDurationLabel : '0m',
+              }));
     final titleText = isToday
         ? L10n.tr('Today · earnings')
         : isWeekly
@@ -531,22 +523,22 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ? _formatBhd3(_todayTripFares)
         : (hasWeekly
             ? _formatBhd3(_weeklyTripFares)
-            : (hasMonthly ? _formatBhd3(_monthlyTripFares) : 'BHD 72.000'));
+            : (hasMonthly ? _formatBhd3(_monthlyTripFares) : 'BHD 0.000'));
     final tipsText = hasToday
         ? _formatBhd3(_todayTips)
-        : (hasWeekly ? _formatBhd3(_weeklyTips) : (hasMonthly ? _formatBhd3(_monthlyTips) : 'BHD 6.400'));
+        : (hasWeekly ? _formatBhd3(_weeklyTips) : (hasMonthly ? _formatBhd3(_monthlyTips) : 'BHD 0.000'));
     final incentivesText = hasToday
         ? _formatBhd3(_todayIncentivesAndBonuses)
         : (hasWeekly
             ? _formatBhd3(_weeklyIncentivesAndBonuses)
             : (hasMonthly
                 ? _formatBhd3(_monthlyIncentivesAndBonuses)
-                : 'BHD 8.000'));
+                : 'BHD 0.000'));
     final totalText = hasToday
         ? _formatBhd3(_todayBreakdownTotal)
         : (hasWeekly
             ? _formatBhd3(_weeklyBreakdownTotal)
-            : (hasMonthly ? _formatBhd3(_monthlyBreakdownTotal) : 'BHD 86.400'));
+            : (hasMonthly ? _formatBhd3(_monthlyBreakdownTotal) : 'BHD 0.000'));
 
     return Container(
       width: double.infinity,
@@ -606,7 +598,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ? _formatBhd3(_todayCodToSettle)
         : (hasWeekly
             ? _formatBhd3(_weeklyCodToSettle)
-            : (hasMonthly ? _formatBhd3(_monthlyCodToSettle) : 'BHD 24.500'));
+            : (hasMonthly ? _formatBhd3(_monthlyCodToSettle) : 'BHD 0.000'));
 
     return Container(
       width: double.infinity,

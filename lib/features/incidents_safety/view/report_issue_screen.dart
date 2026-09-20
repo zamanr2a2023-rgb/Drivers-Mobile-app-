@@ -45,6 +45,12 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
     if (success) {
       AppHelpers.showSnackBar(context, 'Report submitted successfully');
       Navigator.pop(context);
+    } else {
+      AppHelpers.showSnackBar(
+        context,
+        'Failed to submit report',
+        isError: true,
+      );
     }
   }
 

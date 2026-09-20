@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
@@ -265,27 +267,46 @@ class _CashCompleteDeliveryScreenState
             ),
           ),
           SizedBox(width: 12.w),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sara A.',
+                  () {
+                    final name = context
+                            .watch<OrderProvider>()
+                            .currentJobDetail
+                            ?.order
+                            .customer
+                            .displayName
+                            .trim() ??
+                        '';
+                    return name.isEmpty ? '—' : name;
+                  }(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: _textPrimary,
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Adliya · Order #YJK-...41',
+                  () {
+                    final job =
+                        context.watch<OrderProvider>().currentJobDetail;
+                    final area = job?.order.address.shortLabel.trim() ?? '';
+                    final orderNo = job?.order.displayOrderNumber.trim() ?? '';
+                    if (area.isEmpty && orderNo.isEmpty) return '—';
+                    if (area.isEmpty) return orderNo;
+                    if (orderNo.isEmpty) return area;
+                    return '$area · $orderNo';
+                  }(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: _textMuted,
@@ -301,6 +322,12 @@ class _CashCompleteDeliveryScreenState
   }
 
   Widget _buildCashCard() {
+    final order = context.watch<OrderProvider>().currentJobDetail?.order;
+    final amount = order == null
+        ? 0.0
+        : (order.cashToCollectAmount > 0
+            ? order.cashToCollectAmount
+            : order.totalAmount);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
@@ -328,7 +355,7 @@ class _CashCompleteDeliveryScreenState
                     ),
                     SizedBox(height: 3.h),
                     Text(
-                      'BHD 8.500',
+                      'BHD ${amount.toStringAsFixed(3)}',
                       style: TextStyle(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.w800,

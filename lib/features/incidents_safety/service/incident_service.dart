@@ -9,32 +9,21 @@ class IncidentService {
   final ApiService _api;
 
   Future<List<IncidentModel>> getIncidents() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return [
-      IncidentModel(
-        id: 'INC-001',
-        title: 'Late delivery report',
-        description: 'Customer reported late delivery for order #ORD-998',
-        status: 'Resolved',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      ),
-    ];
+    return const [];
   }
 
   Future<bool> submitReport({
     required String issueType,
     required String description,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    return true;
+    return false;
   }
 
   Future<bool> submitItemIssue({
     required List<String> issues,
     required String notes,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    return true;
+    return false;
   }
 
   /// Sends an SOS for the active job to Yjeek Ops.

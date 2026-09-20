@@ -92,6 +92,12 @@ class ScheduledOrderDetailsScreen extends StatelessWidget {
                 'Earning',
                 AppHelpers.formatCurrency(order.price),
               ),
+              if (order.boardJob.tipAmount > 0)
+                _DetailRow(
+                  Icons.volunteer_activism_outlined,
+                  'Tip',
+                  'BHD ${order.boardJob.tipAmount.toStringAsFixed(3)}',
+                ),
               _DetailRow(Icons.label_outline, 'Status', order.status),
               const Spacer(),
               CustomButton(

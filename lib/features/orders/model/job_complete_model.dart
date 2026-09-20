@@ -83,7 +83,7 @@ class JobCompleteSummary {
     return JobCompleteSummary(
       earningsAdded: _asDouble(json['earningsAdded']),
       deliveryFee: _asDouble(json['deliveryFee']),
-      tipAmount: _asDouble(json['tipAmount']),
+      tipAmount: _asDouble(json['tipAmount'] ?? json['tip'] ?? json['driverTip']),
       todayTotalEarnings: _asDouble(json['todayTotalEarnings']),
       distanceKm: _asDouble(json['distanceKm']),
       durationMin: _asInt(json['durationMin']),

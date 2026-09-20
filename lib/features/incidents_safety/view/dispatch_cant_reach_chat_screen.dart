@@ -47,52 +47,7 @@ class _DispatchCantReachChatScreenState
   @override
   void initState() {
     super.initState();
-    _messages = [
-      const _ChatBubble(
-        kind: _BubbleKind.system,
-        text: 'Drop-off · 2 attempts made',
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.dispatch,
-        text:
-            'Hi Sara — I see you’ve tried the customer twice. Please make a 3rd attempt now, then wait the 5-minute window. I’m calling them too.',
-        quickReplies: [
-          'Attempt 3 done',
-          'Left voicemail',
-          'Still no answer',
-        ],
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.driver,
-        text: '3rd attempt done — still no answer.',
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.dispatch,
-        text:
-            'Thanks. This order is non-food, sealed, with a confirmed address — so you’re eligible to leave it at the door with a photo, or return it. You’re not penalized either way.',
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.system,
-        text: '5-minute window elapsed · 3 attempts logged',
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.dispatch,
-        text: 'Choose how you’d like to close this delivery:',
-        actions: [
-          _ChatAction('📷 Leave at door + photo', primary: true),
-          _ChatAction('↩ Return order'),
-        ],
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.driver,
-        text: 'I’ll leave it at the door and upload a photo.',
-      ),
-      const _ChatBubble(
-        kind: _BubbleKind.dispatch,
-        text:
-            'Perfect — marked “Left at door”. All 3 attempts are timestamped and you’re protected. You’re clear to continue 🙌',
-      ),
-    ];
+    _messages = [];
   }
 
   @override
@@ -156,7 +111,16 @@ class _DispatchCantReachChatScreenState
               ),
             ),
             Expanded(
-              child: ListView.builder(
+              child: _messages.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No messages yet',
+                        style: TextStyle(
+                          color: IncidentColors.textMuted,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 itemCount: _messages.length,
