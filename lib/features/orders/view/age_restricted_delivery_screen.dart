@@ -69,7 +69,6 @@ class _AgeRestrictedDeliveryScreenState
   }
 
   static String _resolveFullCustomerName(String customerName) {
-    if (customerName.trim() == 'Sara A.') return 'Sara Ahmed';
     return customerName;
   }
 
@@ -82,11 +81,7 @@ class _AgeRestrictedDeliveryScreenState
   }
 
   static String _resolveIdSummary(ScheduledDeliveryOrder order) {
-    final fullName = _resolveFullCustomerName(order.customerName);
-    if (fullName == 'Sara Ahmed') {
-      return 'CPR ••• 8821 · DOB 12 Jun 1996 · 29 yrs';
-    }
-    return 'CPR ••• •••• · DOB unavailable';
+    return '';
   }
 
   Future<void> _selectPhoto({required bool forCpr}) async {

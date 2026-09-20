@@ -21,7 +21,7 @@ class AccountNotRegisteredScreen extends StatelessWidget {
   static const Color _infoBoxBg = Color(0xFFF1F8F3);
   static const Color _infoTextColor = Color(0xFF005C2E);
   static const Color _buttonBorder = Color(0xFFD5E2D7);
-  static const String _defaultPhoneDisplay = '+973 3300 0000';
+  static const String _defaultPhoneDisplay = '';
 
   void _goToPhoneInput(BuildContext context) {
     Navigator.pushNamedAndRemoveUntil(

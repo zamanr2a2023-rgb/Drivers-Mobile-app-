@@ -52,23 +52,30 @@ class EarningsProvider extends ChangeNotifier {
   Future<void> loadEarnings() async {
     _isLoading = true;
     notifyListeners();
-    final summary = await _service.getEarningsSummary();
-    _totalBalance = summary['totalBalance'] ?? 0;
-    _todayEarning = summary['today'] ?? 0;
-    _weeklyEarning = summary['weekly'] ?? 0;
-    _monthlyEarning = summary['monthly'] ?? 0;
-    _transactions = await _service.getTransactions();
+    try {
+      final summary = await _service.getEarningsSummary();
+      _totalBalance = summary['totalBalance'] ?? 0;
+      _todayEarning = summary['today'] ?? 0;
+      _weeklyEarning = summary['weekly'] ?? 0;
+      _monthlyEarning = summary['monthly'] ?? 0;
+    } catch (_) {
+      _totalBalance = 0;
+      _todayEarning = 0;
+      _weeklyEarning = 0;
+      _monthlyEarning = 0;
+    }
+    try {
+      _transactions = await _service.getTransactions();
+    } on ApiException {
+      _transactions = [];
+    } catch (_) {
+      _transactions = [];
+    }
     _isLoading = false;
     notifyListeners();
   }
 
   Future<bool> requestPayout(double amount) async {
-    _isLoading = true;
-    notifyListeners();
-    await Future.delayed(const Duration(seconds: 1));
-    _totalBalance -= amount;
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    return false;
   }
 }

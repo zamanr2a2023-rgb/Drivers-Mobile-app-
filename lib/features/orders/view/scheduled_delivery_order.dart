@@ -56,7 +56,7 @@ class ScheduledDeliveryOrder {
           ? 'BHD ${job.totalAmount.toStringAsFixed(3)}'
           : null,
       earnings: earnings,
-      tip: '0.000',
+      tip: job.tipAmount > 0 ? job.tipAmount.toStringAsFixed(3) : '0.000',
       totalDeliveryTime: eta.isNotEmpty ? eta.replaceFirst('~', '') : '—',
       deliveryDistance: '—',
       deliveryEta: eta.isNotEmpty ? eta : '—',
@@ -136,6 +136,12 @@ class ScheduledDeliveryOrder {
   }
 
   bool get isPrepaid => paymentType == ScheduledPaymentType.prepaid;
+
+  bool get hasTip => tipAmountValue > 0;
+
+  double get tipAmountValue => double.tryParse(tip.trim()) ?? 0;
+
+  String get tipAmountLabel => 'BHD ${tipAmountValue.toStringAsFixed(3)}';
 
   String get liveJobId {
     final id = orderId.trim();

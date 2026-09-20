@@ -235,6 +235,10 @@ class ScheduledDeliverToCustomerScreen extends StatelessWidget {
           _buildDetailRow('Address', order.customerAddress),
           SizedBox(height: 10.sh),
           _buildDetailRow('Window', order.scheduledWindow),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildDetailRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

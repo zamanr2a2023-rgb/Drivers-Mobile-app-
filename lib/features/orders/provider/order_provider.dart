@@ -253,6 +253,7 @@ class OrderProvider extends ChangeNotifier {
               distance: _currentOffer!.distanceKm,
               createdAt: DateTime.now(),
               paymentStatus: _currentOffer!.paymentMethod,
+              tipAmount: _currentOffer!.tipAmount,
             );
     } on ApiException catch (e) {
       _offersError = e.message;
@@ -458,6 +459,7 @@ class OrderProvider extends ChangeNotifier {
               distance: _currentOffer!.distanceKm,
               createdAt: DateTime.now(),
               paymentStatus: _currentOffer!.paymentMethod,
+              tipAmount: _currentOffer!.tipAmount,
             );
     }
     notifyListeners();
@@ -469,6 +471,7 @@ class OrderProvider extends ChangeNotifier {
 
   Future<void> loadOrderById(String id) async {
     _isLoading = true;
+    _currentOrder = null;
     notifyListeners();
     _currentOrder = await _orderService.getOrderById(id);
     _isLoading = false;

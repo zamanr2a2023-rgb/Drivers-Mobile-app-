@@ -38,7 +38,7 @@ class _OtpScreenState extends State<OtpScreen> {
   static const Color _subtitleColor = Color(0xFF6B7C6B);
   static const Color _errorRed = Color(0xFFD71920);
   static const Color _buttonGreen = Color(0xFF4CAF50);
-  static const String _defaultPhoneDisplay = '+973 3300 0000';
+  static const String _defaultPhoneDisplay = '';
 
   static const int _otpLength = 4;
 

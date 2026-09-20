@@ -33,29 +33,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoggingOut = false;
   bool _isDeletingAccount = false;
 
-  String _firstName = 'Ahmed';
-  String _lastName = 'Khalid';
-  double _averageRating = 4.9;
-  int _totalOrders = 240;
-  int _rpiScore = 88;
-  String _accountStatus = 'ACTIVE';
+  String _firstName = '';
+  String _lastName = '';
+  double _averageRating = 0;
+  int _totalOrders = 0;
+  int _rpiScore = 0;
+  String _accountStatus = '';
 
-  String _displayCode = 'YJK-DRV-0142';
+  String _displayCode = '';
   String _countryCode = '+973';
-  String _phone = '3300 0000';
+  String _phone = '';
   String? _avatarUrl;
   Uint8List? _avatarBytes;
   String? _avatarBytesUrl;
 
   String _language = 'en';
-  bool _documentsVerifiedBadge = true;
+  bool _documentsVerifiedBadge = false;
 
   String get _initials {
     final a = _firstName.trim();
     final b = _lastName.trim();
     final first = a.isNotEmpty ? a[0].toUpperCase() : '';
     final second = b.isNotEmpty ? b[0].toUpperCase() : '';
-    return (first + second).isNotEmpty ? (first + second) : 'MA';
+    return (first + second).isNotEmpty ? (first + second) : '';
   }
 
   String get _accountStatusLabel {

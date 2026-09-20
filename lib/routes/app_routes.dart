@@ -154,20 +154,20 @@ class AppRoutes {
             ? goArgs
             : GoToRestaurantArgs(
                 orderId: goArgs is Map
-                    ? '${goArgs['orderId'] ?? '#YJK-...41'}'
-                    : '#YJK-...41',
+                    ? '${goArgs['orderId'] ?? ''}'
+                    : '',
                 restaurantName: goArgs is Map
-                    ? '${goArgs['restaurantName'] ?? 'The Green Kitchen'}'
-                    : 'The Green Kitchen',
+                    ? '${goArgs['restaurantName'] ?? ''}'
+                    : '',
                 pickupLocation: goArgs is Map
-                    ? '${goArgs['pickupLocation'] ?? 'Seef District'}'
-                    : 'Seef District',
+                    ? '${goArgs['pickupLocation'] ?? ''}'
+                    : '',
                 distance: goArgs is Map
-                    ? '${goArgs['distance'] ?? '1.1 km'}'
-                    : '1.1 km',
+                    ? '${goArgs['distance'] ?? ''}'
+                    : '',
                 estimatedTime: goArgs is Map
-                    ? '${goArgs['estimatedTime'] ?? '~5 min'}'
-                    : '~5 min',
+                    ? '${goArgs['estimatedTime'] ?? ''}'
+                    : '',
               );
         return MaterialPageRoute(
           builder: (context) => GoToRestaurantScreen(
@@ -185,11 +185,11 @@ class AppRoutes {
             ? confirmArgs
             : ConfirmPickupArgs(
                 orderId: confirmArgs is Map
-                    ? '${confirmArgs['orderId'] ?? '#YJK-...41'}'
-                    : '#YJK-...41',
+                    ? '${confirmArgs['orderId'] ?? ''}'
+                    : '',
                 restaurantName: confirmArgs is Map
-                    ? '${confirmArgs['restaurantName'] ?? 'The Green Kitchen'}'
-                    : 'The Green Kitchen',
+                    ? '${confirmArgs['restaurantName'] ?? ''}'
+                    : '',
               );
         return MaterialPageRoute(
           builder: (context) => ConfirmPickupScreen(
@@ -202,7 +202,7 @@ class AppRoutes {
           ),
         );
       case RouteNames.rejectOrder:
-        final rejectOrderId = settings.arguments as String? ?? '#YJK-...41';
+        final rejectOrderId = settings.arguments as String? ?? '';
         return MaterialPageRoute(
           builder: (context) => RejectScheduledOrderScreen(
             orderId: rejectOrderId,
@@ -423,7 +423,7 @@ class AppRoutes {
           verifyArgs = const VerifyChangeNumberArgs(
             phone: '',
             countryCode: '+973',
-            phoneDisplay: '+973 3300 0000',
+            phoneDisplay: '',
           );
         }
         return _page(VerifyChangeNumberScreen(args: verifyArgs));
@@ -447,13 +447,13 @@ class AppRoutes {
     if (args is IncidentContextArgs) return args;
     if (args is Map) {
       return IncidentContextArgs(
-        orderId: '${args['orderId'] ?? '#YJK-…41'}',
+        orderId: '${args['orderId'] ?? ''}',
         vendorName:
-            '${args['vendorName'] ?? args['restaurantName'] ?? 'The Green Kitchen'}',
-        customerName: '${args['customerName'] ?? 'Sara A.'}',
-        area: '${args['area'] ?? 'Adliya'}',
-        address: '${args['address'] ?? 'Adliya · Bldg 23, Road 2825, Flat 82'}',
-        pin: '${args['pin'] ?? 'Pin: 26.22051, 50.58472'}',
+            '${args['vendorName'] ?? args['restaurantName'] ?? ''}',
+        customerName: '${args['customerName'] ?? ''}',
+        area: '${args['area'] ?? ''}',
+        address: '${args['address'] ?? ''}',
+        pin: '${args['pin'] ?? ''}',
       );
     }
     return const IncidentContextArgs();

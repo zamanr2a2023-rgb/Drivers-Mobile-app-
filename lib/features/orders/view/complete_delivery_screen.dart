@@ -57,10 +57,10 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
   static const Color _uploadBg = Color(0xFFF5F5F5);
   static const Color _uploadBorder = Color(0xFFBDBDBD);
 
-  static const String _fallbackCustomerName = 'Sara A.';
-  static const String _fallbackOrderId = '#YJK-...52';
-  static const String _fallbackItemCountLabel = '3 items';
-  static const String _fallbackPaymentLabel = 'Prepaid · Yjeek Wallet';
+  static const String _fallbackCustomerName = '';
+  static const String _fallbackOrderId = '';
+  static const String _fallbackItemCountLabel = '—';
+  static const String _fallbackPaymentLabel = '—';
 
   bool _hasProofPhoto = false;
   Uint8List? _proofPhotoBytes;
@@ -389,6 +389,10 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
           _buildDetailRow('Items', _itemCountLabel(job)),
           SizedBox(height: 10.h),
           _buildDetailRow('Payment', _paymentLabel(job)),
+          if (job != null && job.order.hasTip) ...[
+            SizedBox(height: 10.h),
+            _buildDetailRow('Tip', job.order.tipAmountLabel),
+          ],
         ],
       ),
     );

@@ -6,7 +6,6 @@ import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
-import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Delivery completed success screen for scheduled deliveries.
 class ScheduledDeliveryCompletedScreen extends StatelessWidget {
@@ -29,46 +28,6 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
   static const Color _divider = Color(0xFFE8E8E8);
   static const Color _buttonGreen = Color(0xFF4CAF50);
 
-  static const ScheduledDeliveryOrder _nextRestrictedLuxuryOrder =
-      ScheduledDeliveryOrder(
-    orderId: '#YJK-...52',
-    vendorName: 'Sharaf DG · Luxury counter',
-    vendorAddress: 'Seef · Bldg 210, Floor 2',
-    category: 'Luxury · high-value',
-    customerName: 'Sara A.',
-    customerPhone: '+973 3300 0000',
-    customerAddress: 'Adliya · Bldg 23, Road 2825',
-    scheduledWindow: 'Today · 6–8 PM',
-    pickupDeadlineNotice:
-        'High-value order. Collect the sealed box, confirm the tamper seal & serial before leaving.',
-    distance: '1.4 km',
-    eta: '~6 min',
-    items: [
-      ScheduledOrderItem(quantity: '1×', name: 'Sealed luxury item'),
-    ],
-    isFragileHighValue: true,
-    paymentType: ScheduledPaymentType.prepaid,
-    earnings: '4.500',
-    tip: '0.000',
-    totalDeliveryTime: '26 min',
-    deliveryDistance: '4.2 km',
-    deliveryEta: '~18 min',
-    orderTypeLabel: 'Scheduled · Luxury',
-    cardRouteLabel: 'Sharaf DG → Adliya',
-    cardStatusLine: 'Restricted high-value delivery',
-  );
-
-  bool get _isRestrictedLuxuryCompletion {
-    final category = order.category.toLowerCase();
-    final type = order.orderTypeLabel.toLowerCase();
-    final status = order.cardStatusLine.toLowerCase();
-    return order.isFragileHighValue ||
-        category.contains('luxury') ||
-        category.contains('pharmacy') ||
-        type.contains('luxury') ||
-        status.contains('restricted');
-  }
-
   void _findNextOrder(BuildContext context) {
     final provider = context.read<OrderProvider>();
     provider.finalizeAfterJobComplete(
@@ -76,17 +35,7 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
       refreshScheduledBoards: true,
     );
     OrdersNavSignal.closeEmbeddedDeliverFlow();
-
-    if (order.hasLiveJobId || !_isRestrictedLuxuryCompletion) {
-      scheduledReturnToOnTrack(context);
-      return;
-    }
-
-    Navigator.pushReplacementNamed(
-      context,
-      RouteNames.goToVendorScheduled,
-      arguments: _nextRestrictedLuxuryOrder,
-    );
+    scheduledReturnToOnTrack(context);
   }
 
   JobCompleteSummary? _summary(BuildContext context) {

@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _BahrainPhoneFormatter(),
                               ],
                               decoration: const InputDecoration(
-                                hintText: '3300 0000',
+                                hintText: 'Phone number',
                                 hintStyle: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w400,

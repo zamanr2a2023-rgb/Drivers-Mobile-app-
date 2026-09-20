@@ -215,6 +215,10 @@ class RestrictedDeliverToCustomerScreen extends StatelessWidget {
           _buildDetailRow('Phone', order.customerPhone),
           SizedBox(height: 10.sh),
           _buildDetailRow('Address', order.customerAddress),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildDetailRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

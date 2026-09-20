@@ -494,22 +494,43 @@ class ProfileService {
     }
   }
 
-  Future<ProfileModel> getProfile() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return const ProfileModel(
-      name: 'John Driver',
-      phone: '+1234567890',
-      email: 'john.driver@yjeek.com',
-      vehicleType: 'Motorcycle',
-      plateNumber: 'ABC-1234',
-      licenseNumber: 'DL-987654',
-      licenseStatus: 'Verified',
-      rating: 4.8,
-    );
+  Future<ProfileModel?> getProfile() async {
+    try {
+      final driver = await getDriverProfile();
+      DriverVehicleModel? vehicle;
+      try {
+        vehicle = await getVehicle();
+      } catch (_) {
+        vehicle = null;
+      }
+      return ProfileModel(
+        name: driver.displayName,
+        phone: driver.phone ?? '',
+        email: driver.email,
+        vehicleType: vehicle?.vehicleType,
+        plateNumber: vehicle?.plateNumber,
+        licenseNumber: null,
+        licenseStatus: '',
+        rating: driver.averageRating,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> updateProfile(ProfileModel profile) async {
-    await Future.delayed(const Duration(seconds: 1));
-    return true;
+    final parts = profile.name.trim().split(RegExp(r'\s+'));
+    final firstName = parts.isNotEmpty ? parts.first : '';
+    final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+    try {
+      await updatePersonalAccount(
+        firstName: firstName,
+        lastName: lastName,
+        email: profile.email ?? '',
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

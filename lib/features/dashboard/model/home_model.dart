@@ -96,7 +96,7 @@ class HomeDriverModel {
 
   String get displayName {
     final name = '$firstName $lastName'.trim();
-    return name.isEmpty ? 'Driver' : name;
+    return name;
   }
 
   bool get isOnlineStatus {

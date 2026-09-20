@@ -293,13 +293,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
     }
 
-    // Mock / local-only cards.
     if (jobId == null) {
-      final localId =
-          _rejectJobId.trim().isNotEmpty ? _rejectJobId.trim() : _rejectOrderId;
-      provider.removeOffer(localId);
-      provider.removeScheduledNewJob(localId);
-      closeRejectToNew();
+      AppHelpers.showSnackBar(
+        context,
+        'Failed to decline job',
+        isError: true,
+      );
       return;
     }
 

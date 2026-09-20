@@ -99,7 +99,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
         _hasData = true;
       });
     } catch (_) {
-      // Keep hardcoded fallback values until next refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -108,19 +108,14 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
   @override
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
-    final rpiScore = _hasData ? _rpiScore : 88;
-    final totalOrders = _hasData ? _totalOrders : 284;
-    final acceptanceRate = _hasData ? _acceptanceRate : 92;
-    final completionRate = _hasData ? _completionRate : 98;
-    final averageRating = _hasData ? _averageRating : 4.9;
-    final onTimeRate = _hasData ? _onTimeRate : 95;
-    final standing =
-        _hasData ? _standing : L10n.tr('Great standing');
-    final standingMessage = _hasData
-        ? _standingMessage
-        : L10n.tr(
-            'Keep RPI ≥ 82 to stay in priority dispatch and receive more orders.',
-          );
+    final rpiScore = _hasData ? _rpiScore : 0;
+    final totalOrders = _hasData ? _totalOrders : 0;
+    final acceptanceRate = _hasData ? _acceptanceRate : 0;
+    final completionRate = _hasData ? _completionRate : 0;
+    final averageRating = _hasData ? _averageRating : 0.0;
+    final onTimeRate = _hasData ? _onTimeRate : 0;
+    final standing = _hasData ? _standing : '';
+    final standingMessage = _hasData ? _standingMessage : '';
 
     return Scaffold(
       backgroundColor: DocColors.screenBg,
@@ -286,16 +281,20 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
   }
 
   Widget _buildTierCard() {
-    final tierLabel = _hasData ? _tierLabel : L10n.tr('Gold');
-    final bonusUnlocked = _hasData ? _bonusUnlocked : true;
-    final titleText = bonusUnlocked
-        ? L10n.trParams('{tier} tier · weekly bonus unlocked', {
-            'tier': tierLabel,
-          })
-        : L10n.trParams('{tier} tier · weekly bonus', {'tier': tierLabel});
-    final subtitleText = _hasData
-        ? _weeklyBonusMessage
-        : L10n.tr('32 / 30 trips this week · BHD 8 bonus earned');
+    final tierLabel = _hasData && _tierLabel.trim().isNotEmpty
+        ? _tierLabel.trim()
+        : '—';
+    final bonusUnlocked = _hasData && _bonusUnlocked;
+    final titleText = !_hasData
+        ? '—'
+        : (bonusUnlocked
+            ? L10n.trParams('{tier} tier · weekly bonus unlocked', {
+                'tier': tierLabel,
+              })
+            : L10n.trParams('{tier} tier · weekly bonus', {'tier': tierLabel}));
+    final subtitleText = _hasData && _weeklyBonusMessage.trim().isNotEmpty
+        ? _weeklyBonusMessage.trim()
+        : '—';
 
     return Container(
       width: double.infinity,

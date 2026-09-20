@@ -188,9 +188,8 @@ const Map<String, String> kArabicTranslations = {
   '{tier} tier · weekly bonus unlocked':
       'مستوى {tier} · تم فتح المكافأة الأسبوعية',
   '{tier} tier · weekly bonus': 'مستوى {tier} · مكافأة أسبوعية',
-  '32 / 30 trips this week · BHD 8 bonus earned':
-      '32 / 30 رحلة هذا الأسبوع · مكافأة BHD 8',
-  '**** **** **** 4521 (Placeholder)': '**** **** **** 4521 (Placeholder)',
+  'No bank account': 'لا يوجد حساب بنكي',
+  'Payout is not available': 'السحب غير متاح',
   'The language applies across the whole app.':
       'تُطبَّق اللغة على التطبيق بالكامل.',
   'Language set to {name}': 'تم تعيين اللغة إلى {name}',

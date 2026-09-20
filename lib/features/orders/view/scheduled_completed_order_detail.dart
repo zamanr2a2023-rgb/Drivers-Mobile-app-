@@ -15,6 +15,7 @@ class ScheduledCompletedOrderDetail {
     required this.eta,
     required this.categoryBadge,
     required this.isVapeRestricted,
+    this.tipAmount = 0,
   });
 
   factory ScheduledCompletedOrderDetail.fromBoardJob(JobsBoardJob job) {
@@ -36,6 +37,7 @@ class ScheduledCompletedOrderDetail {
       eta: eta,
       categoryBadge: 'Scheduled',
       isVapeRestricted: false,
+      tipAmount: job.tipAmount,
     );
   }
 
@@ -49,6 +51,7 @@ class ScheduledCompletedOrderDetail {
   final String eta;
   final String categoryBadge;
   final bool isVapeRestricted;
+  final double tipAmount;
 
   String get distanceEtaLabel => '$distance · $eta';
 
@@ -59,26 +62,24 @@ class ScheduledCompletedOrderDetail {
       vendorName: vendorName,
       vendorAddress: vendorAddress,
       category: categoryBadge,
-      customerName: 'Sara A.',
-      customerPhone: '+973 3300 0000',
-      customerAddress: 'Adliya · Bldg 23, Road 2825',
+      customerName: '',
+      customerPhone: '',
+      customerAddress: '',
       scheduledWindow: scheduledWindow,
       pickupDeadlineNotice: '',
       distance: distance,
       eta: eta,
-      items: const [
-        ScheduledOrderItem(quantity: '1×', name: 'Age-restricted items'),
-      ],
+      items: const [],
       isFragileHighValue: false,
       paymentType: ScheduledPaymentType.prepaid,
-      earnings: '2.600',
-      tip: '0.000',
-      totalDeliveryTime: '20 min',
-      deliveryDistance: '4.2 km',
-      deliveryEta: '~18 min',
-      orderTypeLabel: 'Scheduled · Vape',
+      earnings: '',
+      tip: tipAmount > 0 ? tipAmount.toStringAsFixed(3) : '0.000',
+      totalDeliveryTime: '',
+      deliveryDistance: distance,
+      deliveryEta: eta,
+      orderTypeLabel: '',
       cardRouteLabel: cardRouteLabel,
-      cardStatusLine: 'Age-restricted delivery',
+      cardStatusLine: '',
     );
   }
 }

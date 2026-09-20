@@ -463,6 +463,10 @@ class _DeliverToCustomerScreenState extends State<DeliverToCustomerScreen> {
           _buildDetailRow('Address', order.address.shortLabel),
           const SizedBox(height: 10),
           _buildDetailRow('Window', order.windowLabel),
+          if (order.hasTip) ...[
+            const SizedBox(height: 10),
+            _buildDetailRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

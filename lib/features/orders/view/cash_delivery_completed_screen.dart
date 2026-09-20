@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
@@ -122,9 +124,9 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
                               SizedBox(height: 22.h),
                               _buildTitle(),
                               SizedBox(height: 16.h),
-                              _buildEarningsCard(),
+                              _buildEarningsCard(context),
                               SizedBox(height: 18.h),
-                              _buildSummaryCard(),
+                              _buildSummaryCard(context),
                               const Spacer(),
                               _buildFindNextOrderButton(context),
                             ],
@@ -177,7 +179,10 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEarningsCard() {
+  Widget _buildEarningsCard(BuildContext context) {
+    final summary = context.watch<OrderProvider>().lastCompleteResult?.summary;
+    final earnings = summary?.earningsAddedLabel ?? '0.000';
+    final tip = summary?.tipAmountLabel ?? '0.000';
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
@@ -188,7 +193,7 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '+ BHD 2.300',
+            '+ BHD $earnings',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24.sp,
@@ -199,7 +204,7 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
           ),
           SizedBox(height: 6.h),
           Text(
-            'Added to today · incl. BHD 0.300 tip',
+            'Added to today · incl. BHD $tip tip',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11.sp,
@@ -213,7 +218,13 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(BuildContext context) {
+    final summary = context.watch<OrderProvider>().lastCompleteResult?.summary;
+    final distance = summary?.distanceLabel ?? '—';
+    final time = summary?.durationLabel ?? '—';
+    final cash = summary?.cashCollected != null
+        ? 'BHD ${summary!.cashCollected!.toStringAsFixed(3)}'
+        : '—';
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 13.h),
@@ -222,13 +233,13 @@ class CashDeliveryCompletedScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _cardBorder),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Expanded(child: _SummaryMetric(value: '4.2 km', label: 'Distance')),
-          _SummaryDivider(),
-          Expanded(child: _SummaryMetric(value: '22 min', label: 'Time')),
-          _SummaryDivider(),
-          Expanded(child: _SummaryMetric(value: 'Cash', label: 'BHD 8.500')),
+          Expanded(child: _SummaryMetric(value: distance, label: 'Distance')),
+          const _SummaryDivider(),
+          Expanded(child: _SummaryMetric(value: time, label: 'Time')),
+          const _SummaryDivider(),
+          Expanded(child: _SummaryMetric(value: 'Cash', label: cash)),
         ],
       ),
     );

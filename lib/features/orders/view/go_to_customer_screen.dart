@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/services/map_service.dart';
 import 'package:yjeek_driver/core/widgets/app_google_map.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/navigation/bottom_nav_bar.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
@@ -28,11 +30,6 @@ class GoToCustomerScreen extends StatelessWidget {
   static const Color _reportBorder = Color(0xFFF5A623);
   static const Color _navigateBlack = Color(0xFF1A1A1A);
 
-  static const String _orderId = '#YJK-...41';
-  static const String _customerName = 'Sara A.';
-  static const String _customerPhone = '+973 3300 0000';
-  static const String _customerAddress = 'Adliya · Bldg 23, Road 2825, Flat 82';
-  static const String _deliveryNote = 'Leave at the door';
   static const String _cashIconAsset =
       'assets/images/cash_on_delivery_icon.png';
 
@@ -63,6 +60,56 @@ class GoToCustomerScreen extends StatelessWidget {
         Navigator.pushNamed(context, RouteNames.profile);
         return;
     }
+  }
+
+  String _orderId(BuildContext context) {
+    final job = context.watch<OrderProvider>().currentJobDetail;
+    final number = job?.order.displayOrderNumber.trim() ?? '';
+    if (number.isNotEmpty) return number;
+    return job?.id.trim() ?? '';
+  }
+
+  String _customerName(BuildContext context) {
+    return context
+            .watch<OrderProvider>()
+            .currentJobDetail
+            ?.order
+            .customer
+            .displayName
+            .trim() ??
+        '';
+  }
+
+  String _customerPhone(BuildContext context) {
+    return context
+            .watch<OrderProvider>()
+            .currentJobDetail
+            ?.order
+            .customer
+            .displayPhone
+            .trim() ??
+        '';
+  }
+
+  String _customerAddress(BuildContext context) {
+    return context
+            .watch<OrderProvider>()
+            .currentJobDetail
+            ?.order
+            .address
+            .shortLabel
+            .trim() ??
+        '';
+  }
+
+  String _deliveryNote(BuildContext context) {
+    return context
+            .watch<OrderProvider>()
+            .currentJobDetail
+            ?.order
+            .kitchenNote
+            ?.trim() ??
+        '';
   }
 
   @override
@@ -98,9 +145,9 @@ class GoToCustomerScreen extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                       child: Column(
                         children: [
-                          _buildCustomerCard(),
+                          _buildCustomerCard(context),
                           const SizedBox(height: 10),
-                          _buildCashCard(),
+                          _buildCashCard(context),
                           const SizedBox(height: 14),
                           _buildReportNavigateRow(context),
                           const SizedBox(height: 12),
@@ -141,11 +188,11 @@ class GoToCustomerScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 2),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Deliver to customer',
                   style: TextStyle(
                     fontSize: 15,
@@ -154,10 +201,14 @@ class GoToCustomerScreen extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  '4.2 km · ~18 min',
-                  style: TextStyle(
+                  context
+                          .watch<OrderProvider>()
+                          .currentJobDetail
+                          ?.distanceEtaLabel ??
+                      '—',
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFFCFE3D5),
@@ -183,7 +234,11 @@ class GoToCustomerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCustomerCard() {
+  Widget _buildCustomerCard(BuildContext context) {
+    final name = _customerName(context);
+    final phone = _customerPhone(context);
+    final address = _customerAddress(context);
+    final note = _deliveryNote(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -209,57 +264,59 @@ class GoToCustomerScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _customerName,
+                  name.isEmpty ? '—' : name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  _customerPhone,
+                  phone.isEmpty ? '—' : phone,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: _textMuted,
                     height: 1.25,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  _customerAddress,
+                  address.isEmpty ? '—' : address,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: _textMuted,
                     height: 1.25,
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Note:  $_deliveryNote',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: _textMuted,
-                    height: 1.25,
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Note:  $note',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: _textMuted,
+                      height: 1.25,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -282,7 +339,11 @@ class GoToCustomerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCashCard() {
+  Widget _buildCashCard(BuildContext context) {
+    final job = context.watch<OrderProvider>().currentJobDetail;
+    if (job == null || !job.requiresCashCollection) {
+      return const SizedBox.shrink();
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -310,11 +371,11 @@ class GoToCustomerScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Collect cash on delivery',
                   style: TextStyle(
                     fontSize: 12,
@@ -323,10 +384,10 @@ class GoToCustomerScreen extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  'Hand the order, collect BHD 8.500',
-                  style: TextStyle(
+                  job.order.cashCollectLabel,
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: _codOrange,
@@ -357,10 +418,10 @@ class GoToCustomerScreen extends StatelessWidget {
                 onTap: () => Navigator.pushNamed(
                   context,
                   RouteNames.reportAtDropoff,
-                  arguments: const {
-                    'orderId': _orderId,
-                    'customerName': _customerName,
-                    'address': _customerAddress,
+                  arguments: {
+                    'orderId': _orderId(context),
+                    'customerName': _customerName(context),
+                    'address': _customerAddress(context),
                   },
                 ),
                 borderRadius: BorderRadius.circular(14),
@@ -397,7 +458,7 @@ class GoToCustomerScreen extends StatelessWidget {
               child: InkWell(
                 onTap: () => MapService.openNavigationOrShowError(
                   context,
-                  address: _customerAddress,
+                  address: _customerAddress(context),
                 ),
                 borderRadius: BorderRadius.circular(14),
                 child: const Row(

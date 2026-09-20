@@ -359,6 +359,10 @@ class _ScheduledCompleteDeliveryScreenState
           ),
           SizedBox(height: 10.sh),
           _buildDetailRow('Payment', _paymentDisplay),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildDetailRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

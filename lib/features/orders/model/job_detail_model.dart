@@ -200,6 +200,10 @@ class JobDetailOrder {
     return '—';
   }
 
+  bool get hasTip => tipAmount > 0;
+
+  String get tipAmountLabel => 'BHD ${tipAmount.toStringAsFixed(3)}';
+
   String get cashCollectLabel {
     final amount = cashToCollectAmount > 0 ? cashToCollectAmount : totalAmount;
     return 'Hand the order, collect BHD ${amount.toStringAsFixed(3)}';
@@ -221,7 +225,9 @@ class JobDetailOrder {
       totalAmount: _asDouble(json['totalAmount']),
       requiresCashCollection: json['requiresCashCollection'] == true,
       cashToCollectAmount: _asDouble(json['cashToCollectAmount']),
-      tipAmount: _asDouble(json['tipAmount']),
+      tipAmount: _asDouble(
+        json['tipAmount'] ?? json['tip'] ?? json['driverTip'],
+      ),
       vendor: JobDetailVendor.fromJson(
         vendorRaw is Map
             ? Map<String, dynamic>.from(vendorRaw)
@@ -445,7 +451,7 @@ class JobDetailCustomer {
 
   String get displayName {
     final trimmed = name.trim();
-    return trimmed.isEmpty ? 'Customer' : trimmed;
+    return trimmed;
   }
 
   String get displayPhone {
