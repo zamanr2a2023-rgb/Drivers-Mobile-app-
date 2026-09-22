@@ -237,7 +237,9 @@ class DeliveryCompletedScreen extends StatelessWidget {
         ),
         SizedBox(height: 6.h),
         Text(
-          'Added to today · incl. BHD $tip tip',
+          (double.tryParse(tip) ?? 0) > 0
+              ? 'Added to today · incl. BHD $tip tip'
+              : 'Added to today',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13.sp,

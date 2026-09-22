@@ -196,6 +196,10 @@ class ScheduledVapeDeliveryCompletedScreen extends StatelessWidget {
           _buildSummaryRow('Distance', order.deliveryDistance),
           SizedBox(height: 10.sh),
           _buildSummaryRow('Type', _orderTypeLabel),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildSummaryRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

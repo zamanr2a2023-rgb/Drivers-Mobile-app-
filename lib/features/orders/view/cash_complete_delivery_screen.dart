@@ -187,6 +187,15 @@ class _CashCompleteDeliveryScreenState
                   ),
                   children: [
                     _buildCustomerCard(),
+                    if (context
+                            .watch<OrderProvider>()
+                            .currentJobDetail
+                            ?.order
+                            .hasTip ==
+                        true) ...[
+                      SizedBox(height: 14.h),
+                      _buildTipCard(),
+                    ],
                     SizedBox(height: 14.h),
                     _buildCashCard(),
                     SizedBox(height: 14.h),
@@ -314,6 +323,43 @@ class _CashCompleteDeliveryScreenState
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipCard() {
+    final order = context.watch<OrderProvider>().currentJobDetail?.order;
+    final label = order?.tipAmountLabel ?? 'BHD 0.000';
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 13.h, 14.w, 13.h),
+      decoration: BoxDecoration(
+        color: _white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _cardBorder),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Tip',
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w400,
+              color: _textMuted,
+              height: 1.25,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: _textPrimary,
+              height: 1.25,
             ),
           ),
         ],
