@@ -200,6 +200,10 @@ class LuxuryDeliveryCompletedScreen extends StatelessWidget {
           ),
           SizedBox(height: 10.sh),
           _buildSummaryRow('Type', _orderTypeLabel),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildSummaryRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );

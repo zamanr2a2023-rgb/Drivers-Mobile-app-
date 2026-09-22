@@ -58,6 +58,8 @@ class JobCompleteSummary {
 
   String get tipAmountLabel => tipAmount.toStringAsFixed(3);
 
+  bool get hasTip => tipAmount > 0;
+
   String get distanceLabel {
     final value = distanceKm;
     final text = value == value.roundToDouble()

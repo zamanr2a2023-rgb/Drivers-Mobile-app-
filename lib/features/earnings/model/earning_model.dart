@@ -18,7 +18,13 @@ class EarningModel {
       id: json['id']?.toString() ?? '',
       amount: _asDouble(json['amount']),
       type: json['type']?.toString() ?? '',
-      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      date: DateTime.tryParse(
+            json['date']?.toString() ??
+                json['createdAt']?.toString() ??
+                json['occurredAt']?.toString() ??
+                '',
+          ) ??
+          DateTime.now(),
       status: json['status']?.toString() ?? '',
     );
   }

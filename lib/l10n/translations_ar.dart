@@ -126,6 +126,7 @@ const Map<String, String> kArabicTranslations = {
   'Breakdown': 'التفصيل',
   'Trip fares': 'أجور الرحلات',
   'Tips': 'إكراميات',
+  'Tip': 'إكرامية',
   'Incentives & bonuses': 'حوافز ومكافآت',
   'Total': 'الإجمالي',
   'COD to settle': 'الدفع عند الاستلام للتسوية',

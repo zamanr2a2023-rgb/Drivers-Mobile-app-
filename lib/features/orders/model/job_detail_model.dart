@@ -91,6 +91,15 @@ class JobDetailModel {
     final orderMap = orderRaw is Map
         ? Map<String, dynamic>.from(orderRaw)
         : <String, dynamic>{};
+    final nestedTip = _asDouble(
+      orderMap['tipAmount'] ?? orderMap['tip'] ?? orderMap['driverTip'],
+    );
+    if (nestedTip <= 0) {
+      final rootTip = json['tipAmount'] ?? json['tip'] ?? json['driverTip'];
+      if (rootTip != null) {
+        orderMap['tipAmount'] = rootTip;
+      }
+    }
     final contactRaw = json['contactAttempts'];
 
     return JobDetailModel(

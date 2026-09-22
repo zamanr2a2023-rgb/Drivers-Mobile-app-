@@ -831,11 +831,16 @@ class _NewScheduledOrder {
   });
 
   factory _NewScheduledOrder.fromJob(JobsBoardJob job) {
+    final window = [
+      job.scheduledWindowLabel.trim(),
+      if (job.tipAmount > 0)
+        'Tip BHD ${job.tipAmount.toStringAsFixed(3)}',
+    ].where((part) => part.isNotEmpty).join(' · ');
     return _NewScheduledOrder(
       id: job.displayOrderId,
       jobId: job.id,
       route: job.displayRoute,
-      window: job.scheduledWindowLabel,
+      window: window.isNotEmpty ? window : job.scheduledWindowLabel,
       respondIn: job.respondWithinLabel,
     );
   }
@@ -854,6 +859,8 @@ class _NewScheduledOrder {
         offer.distanceKm > 0 ? '${offer.distanceKm.toStringAsFixed(1)} km' : '';
     final windowParts = <String>[
       if (earnings.isNotEmpty) earnings,
+      if (offer.tipAmount > 0)
+        'Tip BHD ${offer.tipAmount.toStringAsFixed(3)}',
       if (distance.isNotEmpty) distance,
       if (offer.durationMin > 0) '~${offer.durationMin} min',
     ];
