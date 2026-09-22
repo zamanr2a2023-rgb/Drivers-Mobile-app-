@@ -462,8 +462,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     OrdersNavSignal.pendingSegment.removeListener(_onNavSignal);
-
-    TabRefreshSignal.ticks[TabRefreshSignal.orders].removeListener(_onTabRefresh);
+    TabRefreshSignal.ticks[TabRefreshSignal.orders]
+        .removeListener(_onTabRefresh);
+    OrdersNavSignal.deliverFlowCloseTick.removeListener(_onCloseDeliverFlow);
     super.dispose();
   }
 
@@ -474,14 +475,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _refreshCurrentBoard() async {
+    if (!mounted) return;
     if (_segment == 0) {
       await context.read<OrderProvider>().loadInstantJobsBoard();
       return;
     }
     _loadScheduledFilter(_scheduledFilter);
-
-    OrdersNavSignal.deliverFlowCloseTick.removeListener(_onCloseDeliverFlow);
-    super.dispose();
   }
 
   void _onCloseDeliverFlow() {
