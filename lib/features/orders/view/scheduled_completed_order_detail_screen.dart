@@ -227,6 +227,13 @@ class ScheduledCompletedOrderDetailScreen extends StatelessWidget {
             order.scheduledWindow,
             valueColor: _windowGreen,
           ),
+          if (order.tipAmount > 0) ...[
+            SizedBox(height: 10.sh),
+            _buildDetailRow(
+              'Tip',
+              'BHD ${order.tipAmount.toStringAsFixed(3)}',
+            ),
+          ],
         ],
       ),
     );

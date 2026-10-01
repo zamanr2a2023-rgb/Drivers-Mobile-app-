@@ -4,7 +4,7 @@ class ApiEndpoints {
 
   // static const String baseUrl = 'http://103.208.183.248:3000/api/v1';
   // static const String baseUrl = 'http://103.208.183.250:3000/api/v1';
-  static const String baseUrl = 'https://api.yjeektech.com/api/v1'; 
+  static const String baseUrl = 'https://api.yjeektech.com/api/v1';
 
   // Auth
   static const String sendOtp = '/drivers/auth/send-otp';
@@ -19,6 +19,36 @@ class ApiEndpoints {
   static const String driverLocation = '/drivers/location';
   static const String autoAccept = '/drivers/settings/auto-accept';
   static const String driverSos = '/drivers/sos';
+
+  // UI banners (CMS)
+  static String uiBanners({String screen = 'home'}) => _query(
+        '/drivers/ui/banners',
+        {'screen': screen},
+      );
+
+  static String get uiBannersHome => uiBanners(screen: 'home');
+  static String get uiBannersJobs => uiBanners(screen: 'jobs');
+  static String get uiBannersEarnings => uiBanners(screen: 'earnings');
+  static String get uiBannersGlobal => uiBanners(screen: 'global');
+
+  static String uiBannersByPlacement(String placementKey) => _query(
+        '/drivers/ui/banners',
+        {'placementKey': placementKey},
+      );
+
+  // Public banners (no auth required)
+  static String publicBanners({
+    String app = 'CHAMP',
+    required String screen,
+  }) =>
+      _query('/banners', {
+        'app': app,
+        'screen': screen,
+      });
+
+  static String get publicBannersHome => publicBanners(screen: 'home');
+  static String get publicBannersJobs => publicBanners(screen: 'jobs');
+  static String get publicBannersEarnings => publicBanners(screen: 'earnings');
 
   // Earnings
   static const String earnings = '/drivers/earnings';
@@ -39,6 +69,7 @@ class ApiEndpoints {
   static const String accountAvatar = '/drivers/account/avatar';
   static const String accountLanguage = '/drivers/account/language';
   static const String accountLogout = '/drivers/account/logout';
+  static const String accountDelete = '/drivers/account';
 
   // Content / localization (shared backend catalog)
   static const String contentLanguages = '/content/languages';
@@ -55,7 +86,7 @@ class ApiEndpoints {
   static String accountDocument(String type) =>
       '/drivers/account/documents/${_seg(type)}';
 
-  /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos
+  /// Upload categories: address-photos | avatars | documents | delivery-proofs | vehicle-photos | support-evidence
   static String uploads({required String category}) => _query(
         '/uploads',
         {'category': category},
@@ -67,12 +98,50 @@ class ApiEndpoints {
   // Notifications
   static const String notifications = '/drivers/notifications';
   static const String notificationsReadAll = '/drivers/notifications/read-all';
+  static const String devices = '/drivers/devices';
 
   static String notificationRead(String notificationId) =>
       '/drivers/notifications/${_seg(notificationId)}/read';
 
+  static String device(String token) => '/drivers/devices/${_seg(token)}';
+
   // Chat
-  static String chatQuickReplies({String peer = 'customer'}) => _query(
+  static const String driverChats = '/drivers/chat';
+
+  /// GET /drivers/chat?peer=dispatch&limit=50
+  static String driverChatsInbox({
+    String peer = 'dispatch',
+    int limit = 50,
+  }) =>
+      _query(driverChats, {
+        'peer': peer,
+        'limit': '$limit',
+      });
+
+  /// GET /drivers/chat/{conversationId}
+  static String chatConversation(String conversationId) =>
+      '$driverChats/${_seg(conversationId)}';
+
+  /// GET + POST /drivers/chat/{conversationId}/messages
+  static String chatConversationMessages(String conversationId) =>
+      '${chatConversation(conversationId)}/messages';
+
+  /// POST /drivers/chat/{conversationId}/read
+  static String chatConversationRead(String conversationId) =>
+      '${chatConversation(conversationId)}/read';
+
+  /// POST /drivers/chat/orders/{orderId}/messages
+  static String chatOrderMessages(String orderId) =>
+      '$driverChats/orders/${_seg(orderId)}/messages';
+
+  /// GET /drivers/chat/orders/{orderId}?peer=dispatch
+  static String chatOrder(String orderId, {String peer = 'dispatch'}) => _query(
+        '$driverChats/orders/${_seg(orderId)}',
+        {'peer': peer},
+      );
+
+  /// GET /drivers/chat/quick-replies?peer=dispatch | peer=customer
+  static String chatQuickReplies({required String peer}) => _query(
         '/drivers/chat/quick-replies',
         {'peer': peer},
       );
@@ -141,8 +210,4 @@ class ApiEndpoints {
     return Uri(path: path, queryParameters: params).toString();
   }
 }
-// language update by init package and ntennt 
-// Chat api is not working and endpoints or backend 
-// todays update in messages and chats. 
-// language update by init package and ntennt 
-// Chat api is not working and endpoints or backend  
+ 

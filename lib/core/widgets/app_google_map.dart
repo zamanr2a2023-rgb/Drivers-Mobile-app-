@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -21,6 +23,7 @@ class AppGoogleMap extends StatefulWidget {
     this.showRecenterButton = true,
     this.routeColor = const Color(0xFF4CAF50),
     this.borderRadius,
+    this.handleScrollGestures = false,
     this.onStateChanged,
   });
 
@@ -35,6 +38,9 @@ class AppGoogleMap extends StatefulWidget {
   final bool showRecenterButton;
   final Color routeColor;
   final BorderRadius? borderRadius;
+
+  /// Lets the map receive pan/zoom when placed inside a scroll view.
+  final bool handleScrollGestures;
   final ValueChanged<DriverMapState>? onStateChanged;
 
   @override
@@ -370,6 +376,13 @@ class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver
       mapToolbarEnabled: false,
       markers: _markers,
       polylines: _polylines,
+      gestureRecognizers: widget.handleScrollGestures
+          ? {
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
+            }
+          : const <Factory<OneSequenceGestureRecognizer>>{},
       onMapCreated: (controller) async {
         _controller = controller;
         _setState(

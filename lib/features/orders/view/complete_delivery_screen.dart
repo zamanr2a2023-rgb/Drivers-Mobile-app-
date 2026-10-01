@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/utils/app_helpers.dart';
 import 'package:yjeek_driver/features/orders/model/job_detail_model.dart';
+import 'package:yjeek_driver/features/orders/order_flow_helpers.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
@@ -56,10 +57,10 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
   static const Color _uploadBg = Color(0xFFF5F5F5);
   static const Color _uploadBorder = Color(0xFFBDBDBD);
 
-  static const String _fallbackCustomerName = 'Sara A.';
-  static const String _fallbackOrderId = '#YJK-...52';
-  static const String _fallbackItemCountLabel = '3 items';
-  static const String _fallbackPaymentLabel = 'Prepaid · Yjeek Wallet';
+  static const String _fallbackCustomerName = '';
+  static const String _fallbackOrderId = '';
+  static const String _fallbackItemCountLabel = '—';
+  static const String _fallbackPaymentLabel = '—';
 
   bool _hasProofPhoto = false;
   Uint8List? _proofPhotoBytes;
@@ -158,10 +159,12 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
 
     if (result != null) {
       AppHelpers.showSnackBar(context, result.message);
-      Navigator.pushNamed(
+      await navigateToJobSuccessScreen(
         context,
-        RouteNames.deliveryCompleted,
+        provider: provider,
+        routeName: RouteNames.deliveryCompleted,
         arguments: result,
+        refreshInstantBoard: true,
       );
       return;
     }
@@ -315,30 +318,45 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pushNamed(
+                context,
+                RouteNames.reportAtDropoff,
+                arguments: {
+                  'orderId': _orderLabel(job),
+                  'customerName': _customerLabel(job),
+                  'address': job?.order.address.navigationAddress ?? '',
+                },
+              ),
               borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.flag_outlined,
-                  color: _reportText,
-                  size: 13.sp,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(width: 4.w),
-                Text(
-                  'Report',
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: _reportText,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flag_outlined,
+                      color: _reportText,
+                      size: 13.sp,
+                    ),
+                    SizedBox(width: 4.w),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                        color: _reportText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -371,6 +389,10 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
           _buildDetailRow('Items', _itemCountLabel(job)),
           SizedBox(height: 10.h),
           _buildDetailRow('Payment', _paymentLabel(job)),
+          if (job != null && job.order.hasTip) ...[
+            SizedBox(height: 10.h),
+            _buildDetailRow('Tip', job.order.tipAmountLabel),
+          ],
         ],
       ),
     );

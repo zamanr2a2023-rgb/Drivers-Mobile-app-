@@ -1,5 +1,6 @@
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/dashboard/model/home_model.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 class DashboardService {
@@ -84,6 +85,24 @@ class DashboardService {
 
     try {
       return HomeDriverModel.fromJson(Map<String, dynamic>.from(data));
+    } on FormatException {
+      throw ApiException('Invalid response from server');
+    }
+  }
+
+  Future<HomeUiBannersModel> getHomeBanners() async {
+    final response = await _api.get(ApiEndpoints.publicBannersHome);
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty)
+            ? message
+            : 'Failed to load banners',
+      );
+    }
+
+    try {
+      return HomeUiBannersModel.fromJson(response);
     } on FormatException {
       throw ApiException('Invalid response from server');
     }

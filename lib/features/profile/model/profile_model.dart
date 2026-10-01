@@ -6,8 +6,8 @@ class ProfileModel {
     this.vehicleType,
     this.plateNumber,
     this.licenseNumber,
-    this.licenseStatus = 'Verified',
-    this.rating = 4.8,
+    this.licenseStatus = '',
+    this.rating = 0,
   });
 
   final String name;

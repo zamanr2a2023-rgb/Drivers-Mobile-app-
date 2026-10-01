@@ -165,6 +165,36 @@ class AuthService {
     _api.clearAccessToken();
   }
 
+  /// Revokes the current JWT on the server. Safe to call before clearing local session.
+  Future<void> logoutAccount() async {
+    final response = await _api.post(ApiEndpoints.accountLogout);
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty) ? message : 'Failed to log out',
+      );
+    }
+  }
+
+  /// Soft-deletes the driver account on the server.
+  Future<void> deleteAccount({String? reason}) async {
+    final response = await _api.delete(
+      ApiEndpoints.accountDelete,
+      body: {
+        'confirm': true,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty)
+            ? message
+            : 'Could not delete account',
+      );
+    }
+  }
+
   DriverModel toDriverModel(AuthUserModel user) {
     final profile = user.driverProfile;
     final name = user.displayName;

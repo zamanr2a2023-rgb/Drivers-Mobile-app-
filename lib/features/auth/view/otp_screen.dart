@@ -8,6 +8,7 @@ import 'package:yjeek_driver/features/auth/model/account_not_registered_exceptio
 import 'package:yjeek_driver/features/auth/model/otp_screen_args.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/services/push_notification_service.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -37,7 +38,7 @@ class _OtpScreenState extends State<OtpScreen> {
   static const Color _subtitleColor = Color(0xFF6B7C6B);
   static const Color _errorRed = Color(0xFFD71920);
   static const Color _buttonGreen = Color(0xFF4CAF50);
-  static const String _defaultPhoneDisplay = '+973 3300 0000';
+  static const String _defaultPhoneDisplay = '';
 
   static const int _otpLength = 4;
 
@@ -211,6 +212,7 @@ class _OtpScreenState extends State<OtpScreen> {
         RouteNames.mainNavigation,
         (route) => false,
       );
+      PushNotificationService.instance.consumePendingOpen();
     } on AccountNotRegisteredException {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(

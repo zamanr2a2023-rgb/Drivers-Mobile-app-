@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/orders/order_flow_helpers.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
-/// Local UI-only “Complete delivery” screen for scheduled On Track deliveries.
+/// Complete delivery screen for scheduled On Track deliveries.
+/// Completes via upload + `POST /drivers/jobs/:jobId/complete`.
 class ScheduledCompleteDeliveryScreen extends StatefulWidget {
   const ScheduledCompleteDeliveryScreen({
     super.key,
@@ -34,8 +39,30 @@ class _ScheduledCompleteDeliveryScreenState
   bool _hasProofPhoto = false;
   Uint8List? _proofPhotoBytes;
   final ImagePicker _imagePicker = ImagePicker();
+  late ScheduledDeliveryOrder _order;
 
-  ScheduledDeliveryOrder get order => widget.order;
+  ScheduledDeliveryOrder get order => _order;
+
+  @override
+  void initState() {
+    super.initState();
+    _order = widget.order;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadJobDetails());
+  }
+
+  Future<void> _loadJobDetails() async {
+    final provider = context.read<OrderProvider>();
+    final jobId = scheduledLiveJobId(_order, provider);
+    if (!isScheduledLiveJobId(jobId)) return;
+
+    if (provider.currentJobDetail?.id != jobId) {
+      await provider.loadJobDetail(jobId);
+    }
+    if (!mounted) return;
+    final job = provider.currentJobDetail;
+    if (job == null) return;
+    setState(() => _order = _order.mergedWithJob(job));
+  }
 
   String get _paymentDisplay =>
       order.paymentSummary.replaceAll('—', '·').replaceAll('-', '·');
@@ -101,9 +128,50 @@ class _ScheduledCompleteDeliveryScreenState
     }
   }
 
-  void _completeDelivery() {
+  Future<void> _completeDelivery() async {
     if (!_hasProofPhoto) return;
-    Navigator.pushNamed(context, RouteNames.deliveryCompleted);
+
+    final provider = context.read<OrderProvider>();
+    if (provider.isCompletingJob) return;
+
+    final photoBytes = _proofPhotoBytes;
+    if (photoBytes == null) return;
+
+    var next = _order;
+    final jobId = scheduledLiveJobId(_order, provider);
+
+    if (isScheduledLiveJobId(jobId)) {
+      final result = await provider.completeJob(
+        jobId: jobId,
+        deliveryPhotoBytes: photoBytes,
+        cashCollected: _order.paymentType == ScheduledPaymentType.cash,
+      );
+      if (!mounted) return;
+
+      if (result == null) {
+        AppHelpers.showSnackBar(
+          context,
+          provider.completeJobError ?? 'Failed to complete delivery',
+          isError: true,
+        );
+        return;
+      }
+
+      final summary = result.summary;
+      if (summary != null) {
+        next = next.mergedWithSummary(summary);
+      }
+      AppHelpers.showSnackBar(context, result.message);
+    }
+
+    if (!mounted) return;
+    await navigateToJobSuccessScreen(
+      context,
+      provider: provider,
+      routeName: RouteNames.scheduledDeliveryCompleted,
+      arguments: next,
+      refreshScheduledBoards: isScheduledLiveJobId(jobId),
+    );
   }
 
   @override
@@ -213,30 +281,45 @@ class _ScheduledCompleteDeliveryScreenState
               ],
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 10.sw, vertical: 6.sh),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.pushNamed(
+                context,
+                RouteNames.reportAtDropoff,
+                arguments: {
+                  'orderId': order.orderId,
+                  'customerName': order.customerName,
+                  'address': order.customerAddress,
+                },
+              ),
               borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.flag_outlined,
-                  color: _reportText,
-                  size: 13.ssp,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.sw, vertical: 6.sh),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                SizedBox(width: 4.sw),
-                Text(
-                  'Report',
-                  style: TextStyle(
-                    fontSize: 11.ssp,
-                    fontWeight: FontWeight.w600,
-                    color: _reportText,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.flag_outlined,
+                      color: _reportText,
+                      size: 13.ssp,
+                    ),
+                    SizedBox(width: 4.sw),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11.ssp,
+                        fontWeight: FontWeight.w600,
+                        color: _reportText,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -266,9 +349,20 @@ class _ScheduledCompleteDeliveryScreenState
             ),
           ),
           SizedBox(height: 14.sh),
-          _buildDetailRow('Items', '${order.itemCount} items'),
+          _buildDetailRow(
+            'Items',
+            order.itemCount <= 0
+                ? '—'
+                : (order.itemCount == 1
+                    ? '1 item'
+                    : '${order.itemCount} items'),
+          ),
           SizedBox(height: 10.sh),
           _buildDetailRow('Payment', _paymentDisplay),
+          if (order.hasTip) ...[
+            SizedBox(height: 10.sh),
+            _buildDetailRow('Tip', order.tipAmountLabel),
+          ],
         ],
       ),
     );
@@ -407,8 +501,11 @@ class _ScheduledCompleteDeliveryScreenState
   }
 
   Widget _buildCompleteButton() {
+    final isCompleting = context.watch<OrderProvider>().isCompletingJob;
+    final enabled = _hasProofPhoto && !isCompleting;
+
     return Opacity(
-      opacity: _hasProofPhoto ? 1 : 0.45,
+      opacity: enabled || isCompleting ? 1 : 0.45,
       child: SizedBox(
         width: double.infinity,
         height: 52.sh,
@@ -416,20 +513,29 @@ class _ScheduledCompleteDeliveryScreenState
           color: _headerGreen,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
-            onTap: _hasProofPhoto ? _completeDelivery : null,
+            onTap: enabled ? _completeDelivery : null,
             borderRadius: BorderRadius.circular(14),
             child: Center(
-              child: Text(
-                'Complete delivery',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15.ssp,
-                  fontWeight: FontWeight.w700,
-                  color: _white,
-                  height: 1.2,
-                ),
-              ),
+              child: isCompleting
+                  ? SizedBox(
+                      width: 22.sw,
+                      height: 22.sw,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: _white,
+                      ),
+                    )
+                  : Text(
+                      'Complete delivery',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.ssp,
+                        fontWeight: FontWeight.w700,
+                        color: _white,
+                        height: 1.2,
+                      ),
+                    ),
             ),
           ),
         ),

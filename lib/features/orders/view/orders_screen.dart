@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/utils/app_helpers.dart';
+import 'package:yjeek_driver/features/dashboard/view/home_cms_banner_slot.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_offer_model.dart';
 import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
@@ -14,6 +15,7 @@ import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart'
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
 import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// Orders screen — Instant + Scheduled tabs.
@@ -72,9 +74,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     _segment = widget.initialSegment.clamp(0, 1);
     OrdersNavSignal.pendingSegment.addListener(_onNavSignal);
+
+    TabRefreshSignal.ticks[TabRefreshSignal.orders].addListener(_onTabRefresh);
+    OrdersNavSignal.deliverFlowCloseTick.addListener(_onCloseDeliverFlow);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeNavSignal();
       if (!mounted) return;
+      context.read<OrderProvider>().loadJobsBanners();
       if (_segment == 0) {
         context.read<OrderProvider>().loadInstantJobsBoard();
       } else {
@@ -286,13 +293,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
     }
 
-    // Mock / local-only cards.
     if (jobId == null) {
-      final localId =
-          _rejectJobId.trim().isNotEmpty ? _rejectJobId.trim() : _rejectOrderId;
-      provider.removeOffer(localId);
-      provider.removeScheduledNewJob(localId);
-      closeRejectToNew();
+      AppHelpers.showSnackBar(
+        context,
+        'Failed to decline job',
+        isError: true,
+      );
       return;
     }
 
@@ -456,7 +462,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   void dispose() {
     OrdersNavSignal.pendingSegment.removeListener(_onNavSignal);
+    TabRefreshSignal.ticks[TabRefreshSignal.orders]
+        .removeListener(_onTabRefresh);
+    OrdersNavSignal.deliverFlowCloseTick.removeListener(_onCloseDeliverFlow);
     super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (!mounted) return;
+    context.read<OrderProvider>().loadJobsBanners();
+    _refreshCurrentBoard();
+  }
+
+  Future<void> _refreshCurrentBoard() async {
+    if (!mounted) return;
+    if (_segment == 0) {
+      await context.read<OrderProvider>().loadInstantJobsBoard();
+      return;
+    }
+    _loadScheduledFilter(_scheduledFilter);
+  }
+
+  void _onCloseDeliverFlow() {
+    if (!mounted || !_showDeliverToCustomer) return;
+    setState(() {
+      _showDeliverToCustomer = false;
+      _activeJobId = '';
+    });
+
   }
 
   void _onNavSignal() => _consumeNavSignal();
@@ -595,6 +628,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                 ],
               ),
+            ),
+            HomeCmsBannerSlot(
+              placementKey: HomeCmsBannerSlot.orders,
+              showError: true,
+              banners: ordersProvider.jobsBannersFor(HomeCmsBannerSlot.orders),
+              loading: ordersProvider.jobsBannersLoading,
+              error: ordersProvider.jobsBannersError,
+              onRetry: () =>
+                  context.read<OrderProvider>().loadJobsBanners(),
             ),
             Expanded(
               child: _segment == 0
@@ -789,11 +831,16 @@ class _NewScheduledOrder {
   });
 
   factory _NewScheduledOrder.fromJob(JobsBoardJob job) {
+    final window = [
+      job.scheduledWindowLabel.trim(),
+      if (job.tipAmount > 0)
+        'Tip BHD ${job.tipAmount.toStringAsFixed(3)}',
+    ].where((part) => part.isNotEmpty).join(' · ');
     return _NewScheduledOrder(
       id: job.displayOrderId,
       jobId: job.id,
       route: job.displayRoute,
-      window: job.scheduledWindowLabel,
+      window: window.isNotEmpty ? window : job.scheduledWindowLabel,
       respondIn: job.respondWithinLabel,
     );
   }
@@ -812,6 +859,8 @@ class _NewScheduledOrder {
         offer.distanceKm > 0 ? '${offer.distanceKm.toStringAsFixed(1)} km' : '';
     final windowParts = <String>[
       if (earnings.isNotEmpty) earnings,
+      if (offer.tipAmount > 0)
+        'Tip BHD ${offer.tipAmount.toStringAsFixed(3)}',
       if (distance.isNotEmpty) distance,
       if (offer.durationMin > 0) '~${offer.durationMin} min',
     ];

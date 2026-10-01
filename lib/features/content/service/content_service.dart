@@ -1,5 +1,6 @@
 import 'package:yjeek_driver/core/constants/api_endpoints.dart';
 import 'package:yjeek_driver/features/content/model/app_language_option.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/l10n/app_locales.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
@@ -57,6 +58,25 @@ class ContentService {
       return out;
     } catch (_) {
       return const {};
+    }
+  }
+
+  /// GET /drivers/ui/banners?screen=global — app-open pop-up.
+  Future<HomeUiBannersModel> fetchGlobalBanners() async {
+    final response = await _api.get(ApiEndpoints.uiBannersGlobal);
+    if (response['success'] != true) {
+      final message = response['message']?.toString().trim();
+      throw ApiException(
+        (message != null && message.isNotEmpty)
+            ? message
+            : 'Failed to load banners',
+      );
+    }
+
+    try {
+      return HomeUiBannersModel.fromJson(response);
+    } on FormatException {
+      throw ApiException('Invalid response from server');
     }
   }
 }

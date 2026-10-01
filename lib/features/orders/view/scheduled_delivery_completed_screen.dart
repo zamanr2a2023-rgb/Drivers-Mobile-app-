@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
+import 'package:yjeek_driver/features/orders/provider/order_provider.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_order.dart';
 import 'package:yjeek_driver/features/orders/view/scheduled_delivery_shared.dart';
-import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/navigation/orders_nav_signal.dart';
 
-/// Local UI-only “Delivery completed” success screen for scheduled deliveries.
+/// Delivery completed success screen for scheduled deliveries.
 class ScheduledDeliveryCompletedScreen extends StatelessWidget {
   const ScheduledDeliveryCompletedScreen({
     super.key,
@@ -25,57 +28,18 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
   static const Color _divider = Color(0xFFE8E8E8);
   static const Color _buttonGreen = Color(0xFF4CAF50);
 
-  static const ScheduledDeliveryOrder _nextRestrictedLuxuryOrder =
-      ScheduledDeliveryOrder(
-    orderId: '#YJK-...52',
-    vendorName: 'Sharaf DG · Luxury counter',
-    vendorAddress: 'Seef · Bldg 210, Floor 2',
-    category: 'Luxury · high-value',
-    customerName: 'Sara A.',
-    customerPhone: '+973 3300 0000',
-    customerAddress: 'Adliya · Bldg 23, Road 2825',
-    scheduledWindow: 'Today · 6–8 PM',
-    pickupDeadlineNotice:
-        'High-value order. Collect the sealed box, confirm the tamper seal & serial before leaving.',
-    distance: '1.4 km',
-    eta: '~6 min',
-    items: [
-      ScheduledOrderItem(quantity: '1×', name: 'Sealed luxury item'),
-    ],
-    isFragileHighValue: true,
-    paymentType: ScheduledPaymentType.prepaid,
-    earnings: '4.500',
-    tip: '0.000',
-    totalDeliveryTime: '26 min',
-    deliveryDistance: '4.2 km',
-    deliveryEta: '~18 min',
-    orderTypeLabel: 'Scheduled · Luxury',
-    cardRouteLabel: 'Sharaf DG → Adliya',
-    cardStatusLine: 'Restricted high-value delivery',
-  );
-
-  bool get _isRestrictedLuxuryCompletion {
-    final category = order.category.toLowerCase();
-    final type = order.orderTypeLabel.toLowerCase();
-    final status = order.cardStatusLine.toLowerCase();
-    return order.isFragileHighValue ||
-        category.contains('luxury') ||
-        category.contains('pharmacy') ||
-        type.contains('luxury') ||
-        status.contains('restricted');
+  void _findNextOrder(BuildContext context) {
+    final provider = context.read<OrderProvider>();
+    provider.finalizeAfterJobComplete(
+      refreshInstantBoard: false,
+      refreshScheduledBoards: true,
+    );
+    OrdersNavSignal.closeEmbeddedDeliverFlow();
+    scheduledReturnToOnTrack(context);
   }
 
-  void _findNextOrder(BuildContext context) {
-    if (!_isRestrictedLuxuryCompletion) {
-      scheduledReturnToOnTrack(context);
-      return;
-    }
-
-    Navigator.pushReplacementNamed(
-      context,
-      RouteNames.goToVendorScheduled,
-      arguments: _nextRestrictedLuxuryOrder,
-    );
+  JobCompleteSummary? _summary(BuildContext context) {
+    return context.watch<OrderProvider>().lastCompleteResult?.summary;
   }
 
   @override
@@ -114,9 +78,9 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
                       SizedBox(height: 28.sh),
                       _buildSuccessSection(),
                       SizedBox(height: 22.sh),
-                      _buildEarningsCard(),
+                      _buildEarningsCard(context),
                       SizedBox(height: 12.sh),
-                      _buildSummaryCard(),
+                      _buildSummaryCard(context),
                       const Spacer(),
                       SizedBox(height: 28.sh),
                       _buildFindNextOrderButton(context),
@@ -170,7 +134,11 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEarningsCard() {
+  Widget _buildEarningsCard(BuildContext context) {
+    final summary = _summary(context);
+    final earnings = summary?.earningsAddedLabel ?? order.earnings;
+    final tip = summary?.tipAmountLabel ?? order.tip;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 16.sw, vertical: 18.sh),
@@ -181,7 +149,7 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '+ BHD ${order.earnings}',
+            '+ BHD $earnings',
             style: TextStyle(
               fontSize: 26.ssp,
               fontWeight: FontWeight.w700,
@@ -192,7 +160,9 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
           ),
           SizedBox(height: 6.sh),
           Text(
-            'Added to today · incl. BHD ${order.tip} tip',
+            (double.tryParse(tip) ?? 0) > 0
+                ? 'Added to today · incl. BHD $tip tip'
+                : 'Added to today',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12.ssp,
@@ -206,7 +176,14 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(BuildContext context) {
+    final summary = _summary(context);
+    final distance = summary?.distanceLabel ?? order.deliveryDistance;
+    final time = summary?.durationLabel ?? order.totalDeliveryTime;
+    final typeLabel = summary?.deliveryTypeLabel;
+    final type =
+        (typeLabel != null && typeLabel != '—') ? typeLabel : order.orderTypeLabel;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: 16.sh),
@@ -220,21 +197,21 @@ class ScheduledDeliveryCompletedScreen extends StatelessWidget {
           children: [
             Expanded(
               child: _buildSummaryColumn(
-                order.deliveryDistance,
+                distance,
                 'Distance',
               ),
             ),
             Container(width: 1, color: _divider),
             Expanded(
               child: _buildSummaryColumn(
-                order.totalDeliveryTime,
+                time,
                 'Time',
               ),
             ),
             Container(width: 1, color: _divider),
             Expanded(
               child: _buildSummaryColumn(
-                order.orderTypeLabel,
+                type,
                 'Type',
               ),
             ),

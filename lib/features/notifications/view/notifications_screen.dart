@@ -303,7 +303,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const _AccountSuspendedDetailsScreen(),
+          builder: (_) => _AccountSuspendedDetailsScreen(
+            title: item.title,
+            body: item.body,
+          ),
         ),
       );
       return;
@@ -312,7 +315,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const _PerformanceAlertDetailsScreen(),
+          builder: (_) => _PerformanceAlertDetailsScreen(
+            title: item.title,
+            body: item.body,
+          ),
         ),
       );
     }
@@ -632,27 +638,39 @@ class _NotificationDetailsColors {
 }
 
 class _AccountSuspendedDetailsScreen extends StatelessWidget {
-  const _AccountSuspendedDetailsScreen();
+  const _AccountSuspendedDetailsScreen({
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
-    return const _NotificationDetailsScaffold(
-      title: 'Account suspended',
-      subtitle: 'You can’t go online',
-      child: _AccountSuspendedDetailsBody(),
+    return _NotificationDetailsScaffold(
+      title: title.isEmpty ? 'Account suspended' : title,
+      subtitle: '',
+      child: _AccountSuspendedDetailsBody(body: body),
     );
   }
 }
 
 class _PerformanceAlertDetailsScreen extends StatelessWidget {
-  const _PerformanceAlertDetailsScreen();
+  const _PerformanceAlertDetailsScreen({
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
-    return const _NotificationDetailsScaffold(
-      title: 'Performance alert',
-      subtitle: 'Action needed',
-      child: _PerformanceAlertDetailsBody(),
+    return _NotificationDetailsScaffold(
+      title: title.isEmpty ? 'Performance alert' : title,
+      subtitle: '',
+      child: _PerformanceAlertDetailsBody(body: body),
     );
   }
 }
@@ -769,10 +787,13 @@ class _NotificationDetailsHeader extends StatelessWidget {
 }
 
 class _PerformanceAlertDetailsBody extends StatelessWidget {
-  const _PerformanceAlertDetailsBody();
+  const _PerformanceAlertDetailsBody({required this.body});
+
+  final String body;
 
   @override
   Widget build(BuildContext context) {
+    final text = body.trim().isEmpty ? '—' : body.trim();
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
       children: [
@@ -787,110 +808,14 @@ class _PerformanceAlertDetailsBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        Container(
-          width: double.infinity,
-          height: 84,
-          decoration: BoxDecoration(
-            color: _NotificationDetailsColors.white,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: _NotificationDetailsColors.border,
-              width: 1,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: _NotificationDetailsColors.shadow,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'RPI 58',
-                style: TextStyle(
-                  color: _NotificationDetailsColors.red,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Below the 62 minimum',
-                style: TextStyle(
-                  color: _NotificationDetailsColors.mutedText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 13),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(12, 13, 12, 14),
-          decoration: BoxDecoration(
-            color: _NotificationDetailsColors.lightGreen,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: const Color(0xFFD9EEDD),
-              width: 1,
-            ),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'How to recover',
-                style: TextStyle(
-                  color: Color(0xFF2E7D32),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Keep acceptance ≥ 92%, completion ≥ 98%, on-time ≥ 95% and rating ≥ 4.7★.',
-                style: TextStyle(
-                  color: _NotificationDetailsColors.mutedText,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.25,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _NotificationDetailsColors.green,
-              foregroundColor: _NotificationDetailsColors.white,
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9),
-              ),
-            ),
-            child: const Text(
-              'View my performance',
-              style: TextStyle(
-                color: _NotificationDetailsColors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _NotificationDetailsColors.darkText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
           ),
         ),
       ],
@@ -899,7 +824,9 @@ class _PerformanceAlertDetailsBody extends StatelessWidget {
 }
 
 class _AccountSuspendedDetailsBody extends StatelessWidget {
-  const _AccountSuspendedDetailsBody();
+  const _AccountSuspendedDetailsBody({required this.body});
+
+  final String body;
 
   @override
   Widget build(BuildContext context) {
@@ -917,56 +844,17 @@ class _AccountSuspendedDetailsBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 26),
-        const Text(
-          'Account Suspended — contact Champ Ops.',
+        Text(
+          body.trim().isEmpty ? '—' : body.trim(),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: _NotificationDetailsColors.darkText,
             fontSize: 15,
             fontWeight: FontWeight.w800,
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 12),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'You can’t go online while suspended. The investigation or penalty process must be resolved first.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _NotificationDetailsColors.mutedText,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.25,
-            ),
-          ),
-        ),
         const SizedBox(height: 15),
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _NotificationDetailsColors.red,
-              foregroundColor: _NotificationDetailsColors.white,
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9),
-              ),
-            ),
-            child: const Text(
-              'Contact Champ Ops',
-              style: TextStyle(
-                color: _NotificationDetailsColors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }

@@ -85,7 +85,7 @@ class GoOnlineScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _buildStatsRow(),
+                      _buildStatsRow(context),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -132,6 +132,7 @@ class GoOnlineScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final dashboard = context.watch<DashboardProvider>();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
       child: Row(
@@ -150,9 +151,13 @@ class GoOnlineScreen extends StatelessWidget {
                       color: _nameChipBg,
                       borderRadius: BorderRadius.circular(22),
                     ),
-                    child: const Text(
-                      'Ahmed Ali',
-                      style: TextStyle(
+                    child: Text(
+                      () {
+                        final name =
+                            dashboard.home?.driver.displayName.trim() ?? '';
+                        return name.isEmpty ? '—' : name;
+                      }(),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: _nameChipText,
@@ -202,18 +207,18 @@ class GoOnlineScreen extends StatelessWidget {
                       color: _balanceBg,
                       borderRadius: BorderRadius.circular(22),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.payments_outlined,
                           size: 14,
                           color: Colors.white,
                         ),
-                        SizedBox(width: 5),
+                        const SizedBox(width: 5),
                         Text(
-                          'BHD 12.500',
-                          style: TextStyle(
+                          dashboard.walletBalanceLabel,
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -237,18 +242,19 @@ class GoOnlineScreen extends StatelessWidget {
                   size: 26,
                   color: _textDark,
                 ),
-                Positioned(
-                  right: 1,
-                  top: 1,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE53935),
-                      shape: BoxShape.circle,
+                if (dashboard.hasUnreadNotifications)
+                  Positioned(
+                    right: 1,
+                    top: 1,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53935),
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -456,7 +462,8 @@ class GoOnlineScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(BuildContext context) {
+    final dashboard = context.watch<DashboardProvider>();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -469,7 +476,7 @@ class GoOnlineScreen extends StatelessWidget {
                 size: 18,
                 color: Color(0xFF4CAF50),
               ),
-              value: '4',
+              value: '${dashboard.tripsToday}',
               label: L10n.tr('Orders'),
             ),
           ),
@@ -492,7 +499,7 @@ class GoOnlineScreen extends StatelessWidget {
                   color: Color(0xFF4CAF50),
                 ),
               ),
-              value: 'BHD 12.50',
+              value: dashboard.todayEarningsLabel,
               label: L10n.tr('Earnings'),
             ),
           ),
@@ -507,7 +514,7 @@ class GoOnlineScreen extends StatelessWidget {
                 size: 18,
                 color: Color(0xFF4CAF50),
               ),
-              value: '3h 20m',
+              value: dashboard.onlineDurationLabel,
               label: L10n.tr('Online'),
             ),
           ),

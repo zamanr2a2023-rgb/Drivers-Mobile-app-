@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yjeek_driver/features/dashboard/view/home_cms_banner_slot.dart';
+import 'package:yjeek_driver/features/earnings/provider/earnings_provider.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 
 /// DE1 · Earnings
@@ -58,16 +61,42 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.earnings].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<EarningsProvider>().loadEarningsBanners();
       if (_selectedPeriod == 0) {
         _ensureTodayLoaded();
       }
     });
   }
 
-  Future<void> _ensureTodayLoaded() async {
-    if (_hasTodayData || _isLoadingToday) return;
+  @override
+  void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.earnings]
+        .removeListener(_onTabRefresh);
+    super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (!mounted) return;
+    context.read<EarningsProvider>().loadEarningsBanners();
+    _reloadCurrentPeriod();
+  }
+
+  Future<void> _reloadCurrentPeriod() {
+    switch (_selectedPeriod) {
+      case 1:
+        return _ensureWeeklyLoaded(force: true);
+      case 2:
+        return _ensureMonthlyLoaded(force: true);
+      default:
+        return _ensureTodayLoaded(force: true);
+    }
+  }
+
+  Future<void> _ensureTodayLoaded({bool force = false}) async {
+    if ((!force && _hasTodayData) || _isLoadingToday) return;
 
     setState(() => _isLoadingToday = true);
     try {
@@ -111,16 +140,15 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasTodayData = true;
       });
     } catch (_) {
-      // Keep screen usable with existing hardcoded values (for non-today)
-      // and 0s for today until the next successful refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingToday = false);
     }
   }
 
-  Future<void> _ensureWeeklyLoaded() async {
-    if (_hasWeeklyData || _isLoadingWeekly) return;
+  Future<void> _ensureWeeklyLoaded({bool force = false}) async {
+    if ((!force && _hasWeeklyData) || _isLoadingWeekly) return;
 
     setState(() => _isLoadingWeekly = true);
     try {
@@ -164,15 +192,15 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasWeeklyData = true;
       });
     } catch (_) {
-      // Keep hardcoded values (for non-weekly UI) until the next refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingWeekly = false);
     }
   }
 
-  Future<void> _ensureMonthlyLoaded() async {
-    if (_hasMonthlyData || _isLoadingMonthly) return;
+  Future<void> _ensureMonthlyLoaded({bool force = false}) async {
+    if ((!force && _hasMonthlyData) || _isLoadingMonthly) return;
 
     setState(() => _isLoadingMonthly = true);
     try {
@@ -216,7 +244,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         _hasMonthlyData = true;
       });
     } catch (_) {
-      // Keep hardcoded values (for non-monthly UI) until the next refresh.
+      // Keep zeros until the next successful refresh.
     } finally {
       if (!mounted) return;
       setState(() => _isLoadingMonthly = false);
@@ -226,6 +254,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
   @override
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
+    final earnings = context.watch<EarningsProvider>();
     return Scaffold(
       backgroundColor: DocColors.screenBg,
       body: SafeArea(
@@ -243,10 +272,28 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
               ),
             ),
+            HomeCmsBannerSlot(
+              placementKey: HomeCmsBannerSlot.earnings,
+              showError: true,
+              banners: earnings.earningsBannersFor(HomeCmsBannerSlot.earnings),
+              loading: earnings.earningsBannersLoading,
+              error: earnings.earningsBannersError,
+              onRetry: () =>
+                  context.read<EarningsProvider>().loadEarningsBanners(),
+            ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: Column(
+              child: RefreshIndicator(
+                color: const Color(0xFF4CAF50),
+                onRefresh: () async {
+                  await Future.wait([
+                    context.read<EarningsProvider>().loadEarningsBanners(),
+                    _reloadCurrentPeriod(),
+                  ]);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSegmentedControl(),
@@ -261,6 +308,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),
@@ -325,43 +373,36 @@ class _EarningsScreenState extends State<EarningsScreen> {
     final isWeekly = _selectedPeriod == 1;
     final isMonthly = _selectedPeriod == 2;
     final totalText = isToday
-        ? (_hasTodayData ? _formatBhd3(_todayTotalEarnings) : 'BHD 86.400')
+        ? (_hasTodayData ? _formatBhd3(_todayTotalEarnings) : 'BHD 0.000')
         : (isWeekly
-            ? (_hasWeeklyData ? _formatBhd3(_weeklyTotalEarnings) : 'BHD 86.400')
+            ? (_hasWeeklyData ? _formatBhd3(_weeklyTotalEarnings) : 'BHD 0.000')
             : (isMonthly
                 ? (_hasMonthlyData
                     ? _formatBhd3(_monthlyTotalEarnings)
-                    : 'BHD 86.400')
-                : 'BHD 86.400'));
+                    : 'BHD 0.000')
+                : 'BHD 0.000'));
     final tripsText = isToday
-        ? (_hasTodayData
-            ? L10n.trParams('{count} trips', {'count': '$_todayTrips'})
-            : L10n.trParams('{count} trips', {'count': '32'}))
+        ? L10n.trParams('{count} trips',
+            {'count': '${_hasTodayData ? _todayTrips : 0}'})
         : (isWeekly
-            ? (_hasWeeklyData
-                ? L10n.trParams('{count} trips', {'count': '$_weeklyTrips'})
-                : L10n.trParams('{count} trips', {'count': '32'}))
-            : (isMonthly
-                ? (_hasMonthlyData
-                    ? L10n.trParams('{count} trips', {'count': '$_monthlyTrips'})
-                    : L10n.trParams('{count} trips', {'count': '32'}))
-                : L10n.trParams('{count} trips', {'count': '32'})));
+            ? L10n.trParams('{count} trips',
+                {'count': '${_hasWeeklyData ? _weeklyTrips : 0}'})
+            : L10n.trParams('{count} trips',
+                {'count': '${_hasMonthlyData ? _monthlyTrips : 0}'}));
     final onlineLabelText = isToday
-        ? (_hasTodayData
-            ? L10n.trParams('{duration} online',
-                {'duration': _todayOnlineDurationLabel})
-            : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
+        ? L10n.trParams('{duration} online', {
+            'duration':
+                _hasTodayData ? _todayOnlineDurationLabel : '0m',
+          })
         : (isWeekly
-            ? (_hasWeeklyData
-                ? L10n.trParams('{duration} online',
-                    {'duration': _weeklyOnlineDurationLabel})
-                : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
-            : (isMonthly
-                ? (_hasMonthlyData
-                    ? L10n.trParams('{duration} online',
-                        {'duration': _monthlyOnlineDurationLabel})
-                    : L10n.trParams('{duration} online', {'duration': '18h 20m'}))
-                : L10n.trParams('{duration} online', {'duration': '18h 20m'})));
+            ? L10n.trParams('{duration} online', {
+                'duration':
+                    _hasWeeklyData ? _weeklyOnlineDurationLabel : '0m',
+              })
+            : L10n.trParams('{duration} online', {
+                'duration':
+                    _hasMonthlyData ? _monthlyOnlineDurationLabel : '0m',
+              }));
     final titleText = isToday
         ? L10n.tr('Today · earnings')
         : isWeekly
@@ -482,22 +523,22 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ? _formatBhd3(_todayTripFares)
         : (hasWeekly
             ? _formatBhd3(_weeklyTripFares)
-            : (hasMonthly ? _formatBhd3(_monthlyTripFares) : 'BHD 72.000'));
+            : (hasMonthly ? _formatBhd3(_monthlyTripFares) : 'BHD 0.000'));
     final tipsText = hasToday
         ? _formatBhd3(_todayTips)
-        : (hasWeekly ? _formatBhd3(_weeklyTips) : (hasMonthly ? _formatBhd3(_monthlyTips) : 'BHD 6.400'));
+        : (hasWeekly ? _formatBhd3(_weeklyTips) : (hasMonthly ? _formatBhd3(_monthlyTips) : 'BHD 0.000'));
     final incentivesText = hasToday
         ? _formatBhd3(_todayIncentivesAndBonuses)
         : (hasWeekly
             ? _formatBhd3(_weeklyIncentivesAndBonuses)
             : (hasMonthly
                 ? _formatBhd3(_monthlyIncentivesAndBonuses)
-                : 'BHD 8.000'));
+                : 'BHD 0.000'));
     final totalText = hasToday
         ? _formatBhd3(_todayBreakdownTotal)
         : (hasWeekly
             ? _formatBhd3(_weeklyBreakdownTotal)
-            : (hasMonthly ? _formatBhd3(_monthlyBreakdownTotal) : 'BHD 86.400'));
+            : (hasMonthly ? _formatBhd3(_monthlyBreakdownTotal) : 'BHD 0.000'));
 
     return Container(
       width: double.infinity,
@@ -557,7 +598,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ? _formatBhd3(_todayCodToSettle)
         : (hasWeekly
             ? _formatBhd3(_weeklyCodToSettle)
-            : (hasMonthly ? _formatBhd3(_monthlyCodToSettle) : 'BHD 24.500'));
+            : (hasMonthly ? _formatBhd3(_monthlyCodToSettle) : 'BHD 0.000'));
 
     return Container(
       width: double.infinity,

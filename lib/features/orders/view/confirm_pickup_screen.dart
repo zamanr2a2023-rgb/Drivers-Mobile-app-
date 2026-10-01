@@ -199,7 +199,8 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
         : widget.args.orderId.trim();
 
     if (jobId.isEmpty || jobId.startsWith('#')) {
-      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer,
+          arguments: jobId);
       return;
     }
 
@@ -216,7 +217,8 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
             ? result.progressLabel
             : 'Pickup confirmed',
       );
-      Navigator.pushNamed(context, RouteNames.deliverToCustomer);
+      Navigator.pushNamed(context, RouteNames.deliverToCustomer,
+          arguments: jobId);
       return;
     }
 
@@ -461,6 +463,10 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
   }
 
   Widget _buildCashCard() {
+    final job = context.watch<OrderProvider>().currentJobDetail;
+    if (job == null || !job.requiresCashCollection) {
+      return const SizedBox.shrink();
+    }
     return SizedBox(
       width: double.infinity,
       child: Container(
@@ -504,7 +510,7 @@ class _ConfirmPickupScreenState extends State<ConfirmPickupScreen> {
                   ),
                   SizedBox(height: 3.h),
                   Text(
-                    'Hand the order, collect BHD 8.500',
+                    job.order.cashCollectLabel,
                     style: TextStyle(
                       fontSize: 11.sp,
                       fontWeight: FontWeight.w500,

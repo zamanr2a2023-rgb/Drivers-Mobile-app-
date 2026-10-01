@@ -13,6 +13,7 @@ class OrderModel {
     this.items = const [],
     this.paymentStatus = 'Pending',
     this.deliveryNotes,
+    this.tipAmount = 0,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class OrderModel {
   final List<String> items;
   final String paymentStatus;
   final String? deliveryNotes;
+  final double tipAmount;
 
   OrderModel copyWith({String? status}) {
     return OrderModel(
@@ -44,6 +46,7 @@ class OrderModel {
       items: items,
       paymentStatus: paymentStatus,
       deliveryNotes: deliveryNotes,
+      tipAmount: tipAmount,
     );
   }
 }

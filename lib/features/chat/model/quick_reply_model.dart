@@ -10,10 +10,12 @@ class QuickReplyModel {
   final String body;
 
   factory QuickReplyModel.fromJson(Map<String, dynamic> json) {
+    final body = json['body']?.toString().trim() ?? '';
+    final label = json['label']?.toString().trim() ?? '';
     return QuickReplyModel(
       id: json['id']?.toString() ?? '',
-      label: json['label']?.toString() ?? '',
-      body: json['body']?.toString() ?? '',
+      label: label.isNotEmpty ? label : body,
+      body: body,
     );
   }
 }

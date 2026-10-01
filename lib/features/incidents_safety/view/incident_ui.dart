@@ -25,12 +25,12 @@ class IncidentColors {
 
 class IncidentContextArgs {
   const IncidentContextArgs({
-    this.orderId = '#YJK-…41',
-    this.vendorName = 'The Green Kitchen',
-    this.customerName = 'Sara A.',
-    this.area = 'Adliya',
-    this.address = 'Adliya · Bldg 23, Road 2825, Flat 82',
-    this.pin = 'Pin: 26.22051, 50.58472',
+    this.orderId = '',
+    this.vendorName = '',
+    this.customerName = '',
+    this.area = '',
+    this.address = '',
+    this.pin = '',
   });
 
   final String orderId;

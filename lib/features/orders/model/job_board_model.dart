@@ -44,6 +44,7 @@ class JobsBoardJob {
     required this.paymentMethod,
     required this.driverEarnings,
     required this.totalAmount,
+    this.tipAmount = 0,
     required this.etaMin,
     required this.progress,
     this.statusLabel,
@@ -67,6 +68,7 @@ class JobsBoardJob {
   final String paymentMethod;
   final double driverEarnings;
   final double totalAmount;
+  final double tipAmount;
   final int etaMin;
   final double progress;
   final String? statusLabel;
@@ -402,6 +404,12 @@ class JobsBoardJob {
             json['totalAmount'] ??
             json['cashToCollect'] ??
             json['orderTotal'],
+      ),
+      tipAmount: _asDouble(
+        order?['tipAmount'] ??
+            order?['tip'] ??
+            json['tipAmount'] ??
+            json['tip'],
       ),
       etaMin: _asInt(
         json['etaMin'] ??

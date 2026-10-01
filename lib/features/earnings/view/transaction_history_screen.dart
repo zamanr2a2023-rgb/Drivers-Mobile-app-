@@ -41,7 +41,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               itemCount: provider.transactions.length,
               itemBuilder: (context, index) {
                 final txn = provider.transactions[index];
-                final isPayout = txn.type == 'Payout';
+                final typeKey = txn.type.trim().toUpperCase();
+                final isPayout = typeKey == 'PAYOUT';
+                final isTip = typeKey == 'TIP';
+                final typeLabel = isTip
+                    ? L10n.tr('Tip')
+                    : (txn.type.trim().isEmpty ? '—' : txn.type);
                 return Card(
                   margin: const EdgeInsets.only(bottom: AppSizes.paddingSm),
                   child: ListTile(
@@ -53,7 +58,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         size: 20,
                       ),
                     ),
-                    title: Text(txn.type, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(typeLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('${txn.id} · ${DateFormatter.formatDateTime(txn.date)}'),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

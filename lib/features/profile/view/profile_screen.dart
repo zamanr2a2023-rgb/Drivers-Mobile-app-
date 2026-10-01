@@ -8,10 +8,12 @@ import 'package:provider/provider.dart';
 import 'package:yjeek_driver/core/constants/app_assets.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
+import 'package:yjeek_driver/features/dashboard/provider/dashboard_provider.dart';
 import 'package:yjeek_driver/features/profile/service/profile_service.dart';
 import 'package:yjeek_driver/features/profile/view/doc_upload_ui.dart';
 import 'package:yjeek_driver/features/settings/provider/settings_provider.dart';
 import 'package:yjeek_driver/l10n/l10n.dart';
+import 'package:yjeek_driver/navigation/tab_refresh_signal.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
 
 /// DE4 · Account
@@ -29,30 +31,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingAccount = false;
   bool _isLoggingOut = false;
+  bool _isDeletingAccount = false;
 
-  String _firstName = 'Ahmed';
-  String _lastName = 'Khalid';
-  double _averageRating = 4.9;
-  int _totalOrders = 240;
-  int _rpiScore = 88;
-  String _accountStatus = 'ACTIVE';
+  String _firstName = '';
+  String _lastName = '';
+  double _averageRating = 0;
+  int _totalOrders = 0;
+  int _rpiScore = 0;
+  String _accountStatus = '';
 
-  String _displayCode = 'YJK-DRV-0142';
+  String _displayCode = '';
   String _countryCode = '+973';
-  String _phone = '3300 0000';
+  String _phone = '';
   String? _avatarUrl;
   Uint8List? _avatarBytes;
   String? _avatarBytesUrl;
 
   String _language = 'en';
-  bool _documentsVerifiedBadge = true;
+  bool _documentsVerifiedBadge = false;
 
   String get _initials {
     final a = _firstName.trim();
     final b = _lastName.trim();
     final first = a.isNotEmpty ? a[0].toUpperCase() : '';
     final second = b.isNotEmpty ? b[0].toUpperCase() : '';
-    return (first + second).isNotEmpty ? (first + second) : 'MA';
+    return (first + second).isNotEmpty ? (first + second) : '';
   }
 
   String get _accountStatusLabel {
@@ -66,9 +69,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    TabRefreshSignal.ticks[TabRefreshSignal.account].addListener(_onTabRefresh);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAccount();
     });
+  }
+
+  @override
+  void dispose() {
+    TabRefreshSignal.ticks[TabRefreshSignal.account]
+        .removeListener(_onTabRefresh);
+    super.dispose();
+  }
+
+  void _onTabRefresh() {
+    if (mounted) _loadAccount();
   }
 
   Future<void> _loadAccount() async {
@@ -181,14 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
 
-    try {
-      await _profileService.logoutAccount();
-    } on ApiException {
-      // Still clear local session so the user can leave the account.
-    } catch (_) {
-      // Still clear local session so the user can leave the account.
-    }
-
+    context.read<DashboardProvider>().resetOnLogout();
     if (!mounted) return;
     await context.read<AuthProvider>().logout();
     if (!mounted) return;
@@ -197,6 +205,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
       RouteNames.login,
       (route) => false,
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount || _isLoggingOut) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(L10n.tr('Delete account?')),
+        content: Text(
+          L10n.tr(
+            'This permanently deletes your account. Active deliveries must be finished first.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(L10n.tr('Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFC0392B),
+            ),
+            child: Text(L10n.tr('Delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingAccount = true);
+    try {
+      context.read<DashboardProvider>().resetOnLogout();
+      if (!mounted) return;
+      await context.read<AuthProvider>().deleteAccount();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        RouteNames.login,
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeletingAccount = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isDeletingAccount = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(L10n.tr('Could not delete account')),
+          backgroundColor: const Color(0xFFB42318),
+        ),
+      );
+    }
   }
 
   @override
@@ -220,9 +289,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                child: Column(
+              child: RefreshIndicator(
+                color: const Color(0xFF4CAF50),
+                onRefresh: _loadAccount,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: Column(
                   children: [
                     _buildProfileCard(),
                     const SizedBox(height: 12),
@@ -233,9 +306,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildSettingsCard(),
                     const SizedBox(height: 12),
                     _buildLogoutButton(),
+                    const SizedBox(height: 12),
+                    _buildDeleteAccountLink(),
                   ],
                 ),
               ),
+            ),
             ),
           ],
         ),
@@ -556,7 +632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       borderRadius: BorderRadius.circular(13),
       child: InkWell(
         borderRadius: BorderRadius.circular(13),
-        onTap: _isLoggingOut ? null : _logout,
+        onTap: (_isLoggingOut || _isDeletingAccount) ? null : _logout,
         child: Container(
           width: double.infinity,
           height: 48,
@@ -578,6 +654,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountLink() {
+    final busy = _isDeletingAccount || _isLoggingOut;
+    return GestureDetector(
+      onTap: busy ? null : _deleteAccount,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          _isDeletingAccount
+              ? L10n.tr('Deleting...')
+              : L10n.tr('Delete account'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF6B7280),
+            decoration: TextDecoration.underline,
+            decorationColor: Color(0xFF6B7280),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:yjeek_driver/features/dashboard/model/ui_banner_model.dart';
 import 'package:yjeek_driver/features/orders/model/contact_attempts_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_board_model.dart';
 import 'package:yjeek_driver/features/orders/model/job_complete_model.dart';
@@ -78,6 +79,9 @@ class OrderProvider extends ChangeNotifier {
   String? _confirmOrderError;
   String? _acceptJobError;
   String? _declineJobError;
+  bool _jobsBannersLoading = false;
+  String? _jobsBannersError;
+  HomeUiBannersModel? _jobsBanners;
   String? _confirmPickupError;
   String? _resendSecureCodeError;
   JobResendCodeResult? _lastResendSecureCodeResult;
@@ -125,6 +129,12 @@ class OrderProvider extends ChangeNotifier {
       _isReturningAgeRestricted || _isReturningSecureOrder;
   bool get isConfirmingReturn => _isConfirmingReturn;
   bool get isProcessingReturn => isReturningOrder || _isConfirmingReturn;
+  bool get jobsBannersLoading => _jobsBannersLoading;
+  String? get jobsBannersError => _jobsBannersError;
+
+  List<UiBannerModel> jobsBannersFor(String placementKey) =>
+      _jobsBanners?.forPlacement(placementKey) ?? const [];
+
   List<OrderModel> get orders => _orders;
   List<JobOfferModel> get offers => _offers;
   List<JobsBoardJob> get instantActiveJobs => _instantActiveJobs;
@@ -204,6 +214,23 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadJobsBanners() async {
+    _jobsBannersLoading = true;
+    _jobsBannersError = null;
+    notifyListeners();
+
+    try {
+      _jobsBanners = await _orderService.getJobsBanners();
+    } on ApiException catch (e) {
+      _jobsBannersError = e.message;
+    } catch (_) {
+      _jobsBannersError = 'Failed to load banners';
+    } finally {
+      _jobsBannersLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadJobOffers() async {
     _isLoadingOffers = true;
     _offersError = null;
@@ -226,6 +253,7 @@ class OrderProvider extends ChangeNotifier {
               distance: _currentOffer!.distanceKm,
               createdAt: DateTime.now(),
               paymentStatus: _currentOffer!.paymentMethod,
+              tipAmount: _currentOffer!.tipAmount,
             );
     } on ApiException catch (e) {
       _offersError = e.message;
@@ -431,6 +459,7 @@ class OrderProvider extends ChangeNotifier {
               distance: _currentOffer!.distanceKm,
               createdAt: DateTime.now(),
               paymentStatus: _currentOffer!.paymentMethod,
+              tipAmount: _currentOffer!.tipAmount,
             );
     }
     notifyListeners();
@@ -442,6 +471,7 @@ class OrderProvider extends ChangeNotifier {
 
   Future<void> loadOrderById(String id) async {
     _isLoading = true;
+    _currentOrder = null;
     notifyListeners();
     _currentOrder = await _orderService.getOrderById(id);
     _isLoading = false;
@@ -468,9 +498,11 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  void clearJobDetail() {
+  void clearJobDetail({bool preserveCompleteResult = false}) {
     _currentJobDetail = null;
-    _lastCompleteResult = null;
+    if (!preserveCompleteResult) {
+      _lastCompleteResult = null;
+    }
     _contactAttempts = null;
     _lastJobReportResult = null;
     _lastReportWaitResult = null;
@@ -511,6 +543,30 @@ class OrderProvider extends ChangeNotifier {
     _isReturningSecureOrder = false;
     _isConfirmingReturn = false;
     notifyListeners();
+  }
+
+  /// Clears active job UI state after a successful complete and refreshes boards.
+  Future<void> finalizeAfterJobComplete({
+    bool refreshInstantBoard = true,
+    bool refreshScheduledBoards = false,
+  }) async {
+    clearJobDetail(preserveCompleteResult: true);
+    _currentOrder = null;
+    _newRequest = null;
+    _currentOffer = null;
+    _deliveryStep = 0;
+
+    final tasks = <Future<void>>[];
+    if (refreshInstantBoard) {
+      tasks.add(loadInstantJobsBoard());
+    }
+    if (refreshScheduledBoards) {
+      tasks.add(loadScheduledOnTrackJobsBoard());
+      tasks.add(loadScheduledCompletedJobsBoard());
+    }
+    if (tasks.isNotEmpty) {
+      await Future.wait(tasks);
+    }
   }
 
   /// `POST /drivers/jobs/:jobId/arrive-customer`

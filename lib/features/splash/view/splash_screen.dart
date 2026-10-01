@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yjeek_driver/features/auth/provider/auth_provider.dart';
 import 'package:yjeek_driver/routes/route_names.dart';
+import 'package:yjeek_driver/services/push_notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -37,6 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
         : RouteNames.login;
 
     Navigator.pushReplacementNamed(context, nextRoute);
+    PushNotificationService.instance.consumePendingOpen();
   }
 
   @override

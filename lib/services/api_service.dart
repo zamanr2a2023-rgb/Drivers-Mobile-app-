@@ -65,6 +65,13 @@ class ApiService {
     return _request('PUT', endpoint, body: body);
   }
 
+  Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) {
+    return _request('DELETE', endpoint, body: body);
+  }
+
   /// Multipart PATCH for file uploads.
   Future<Map<String, dynamic>> patchMultipart(
     String endpoint, {

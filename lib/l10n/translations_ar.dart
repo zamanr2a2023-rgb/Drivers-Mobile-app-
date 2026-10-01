@@ -126,6 +126,7 @@ const Map<String, String> kArabicTranslations = {
   'Breakdown': 'التفصيل',
   'Trip fares': 'أجور الرحلات',
   'Tips': 'إكراميات',
+  'Tip': 'إكرامية',
   'Incentives & bonuses': 'حوافز ومكافآت',
   'Total': 'الإجمالي',
   'COD to settle': 'الدفع عند الاستلام للتسوية',
@@ -148,6 +149,13 @@ const Map<String, String> kArabicTranslations = {
   'Verify': 'تحقّق',
   'Log out': 'تسجيل الخروج',
   'Logout': 'تسجيل الخروج',
+  'Delete account': 'حذف الحساب',
+  'Delete account?': 'حذف الحساب؟',
+  'This permanently deletes your account. Active deliveries must be finished first.':
+      'سيتم حذف حسابك نهائياً. يجب إنهاء التوصيلات النشطة أولاً.',
+  'Deleting...': 'جاري الحذف...',
+  'Delete': 'حذف',
+  'Could not delete account': 'تعذر حذف الحساب',
 
   // Common / settings
   'Driver Home': 'الرئيسية',
@@ -181,9 +189,8 @@ const Map<String, String> kArabicTranslations = {
   '{tier} tier · weekly bonus unlocked':
       'مستوى {tier} · تم فتح المكافأة الأسبوعية',
   '{tier} tier · weekly bonus': 'مستوى {tier} · مكافأة أسبوعية',
-  '32 / 30 trips this week · BHD 8 bonus earned':
-      '32 / 30 رحلة هذا الأسبوع · مكافأة BHD 8',
-  '**** **** **** 4521 (Placeholder)': '**** **** **** 4521 (Placeholder)',
+  'No bank account': 'لا يوجد حساب بنكي',
+  'Payout is not available': 'السحب غير متاح',
   'The language applies across the whole app.':
       'تُطبَّق اللغة على التطبيق بالكامل.',
   'Language set to {name}': 'تم تعيين اللغة إلى {name}',

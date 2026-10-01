@@ -19,9 +19,8 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
 
   final ProfileService _profileService = ProfileService();
   final _numberController = TextEditingController();
- //demo number 33000000
   bool _isSending = false;
-  String _currentPhoneDisplay = '+973 3300 0000';
+  String _currentPhoneDisplay = '';
 
   @override
   void initState() {
