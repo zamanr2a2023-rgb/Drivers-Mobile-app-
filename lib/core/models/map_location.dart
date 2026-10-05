@@ -6,7 +6,8 @@ const LatLng kBahrainFallbackLatLng =
 
 /// When true, LocationService always reports [kBahrainFallbackLatLng]
 /// instead of device GPS (useful while testing outside Bahrain).
-const bool kUseFixedDriverLocation = true;
+/// Keep false so the map and backend use the phone's real GPS.
+const bool kUseFixedDriverLocation = false;
 
 enum MapLocationKind { driver, pickup, dropoff, other }
 

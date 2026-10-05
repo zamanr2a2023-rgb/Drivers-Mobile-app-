@@ -95,9 +95,10 @@ class _SafetyHelpScreenState extends State<SafetyHelpScreen> {
     return Scaffold(
       appBar: const CustomAppBar(title: 'Safety Help'),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSizes.paddingLg),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(AppSizes.paddingLg),
