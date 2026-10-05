@@ -151,8 +151,8 @@ class _AppGoogleMapState extends State<AppGoogleMap> with WidgetsBindingObserver
         return;
       }
 
-      // Fixed Bahrain pin: use our marker only — Google my-location would
-      // still show the real device GPS (e.g. Dhaka) as the blue dot.
+      // Real GPS: Google's blue dot and the driver marker both sit on the
+      // device position. Fixed-location mode keeps the blue dot off.
       _myLocationEnabled = !kUseFixedDriverLocation;
       final current = await _locationService.getCurrentMapLocation();
       if (!mounted) return;
