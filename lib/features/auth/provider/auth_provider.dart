@@ -4,6 +4,8 @@ import 'package:yjeek_driver/features/auth/model/driver_model.dart';
 import 'package:yjeek_driver/features/auth/model/send_otp_result.dart';
 import 'package:yjeek_driver/features/auth/model/verify_otp_result.dart';
 import 'package:yjeek_driver/features/auth/service/auth_service.dart';
+import 'package:yjeek_driver/routes/app_navigator.dart';
+import 'package:yjeek_driver/routes/route_names.dart';
 import 'package:yjeek_driver/services/api_service.dart';
 import 'package:yjeek_driver/services/push_notification_service.dart';
 
@@ -11,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void>? _restoreFuture;
 
   AuthProvider() {
+    PushNotificationService.instance.onSessionRejected = _dropRevokedSession;
     _restoreFuture = _restoreSession();
   }
 
@@ -52,7 +55,7 @@ class AuthProvider extends ChangeNotifier {
     _accessToken = token;
     _refreshToken = await _authService.loadRefreshToken();
     notifyListeners();
-    PushNotificationService.instance.syncToken();
+    await PushNotificationService.instance.syncToken();
   }
 
   Future<SendOtpResult?> sendOtp({
@@ -140,8 +143,10 @@ class AuthProvider extends ChangeNotifier {
       _driver = _authService.toDriverModel(result.user);
       _accessToken = result.accessToken;
       _refreshToken = result.refreshToken;
+      _droppingSession = false;
       _isLoading = false;
       notifyListeners();
+      PushNotificationService.instance.resetSessionRejection();
       PushNotificationService.instance.syncToken();
       return result;
     } on AccountNotRegisteredException {
@@ -159,6 +164,29 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  bool _droppingSession = false;
+
+  /// Saved login was rejected by the API. Clear it and return to the login screen.
+  Future<void> _dropRevokedSession() async {
+    if (_droppingSession) return;
+    _droppingSession = true;
+    await _authService.clearSession();
+    _driver = null;
+    _user = null;
+    _accessToken = null;
+    _refreshToken = null;
+    _phone = null;
+    _countryCode = null;
+    _expiresInSeconds = null;
+    _error = 'Account is not active or session has been revoked';
+    _restoreFuture = null;
+    notifyListeners();
+    appNavigatorKey.currentState?.pushNamedAndRemoveUntil(
+      RouteNames.login,
+      (route) => false,
+    );
   }
 
   Future<void> logout() async {

@@ -109,7 +109,15 @@ class PushNotificationService {
   static final PushNotificationService instance = PushNotificationService._();
 
   bool _started = false;
+  bool _sessionRejected = false;
   Map<String, String>? _pendingOpen;
+
+  /// Called when the API rejects the saved login (inactive account or revoked session).
+  Future<void> Function()? onSessionRejected;
+
+  void resetSessionRejection() {
+    _sessionRejected = false;
+  }
 
   bool get _hasSession {
     final token = ApiService.instance.accessToken;
@@ -276,7 +284,7 @@ class PushNotificationService {
   }
 
   Future<void> _register(String token) async {
-    if (!_hasSession) return;
+    if (_sessionRejected || !_hasSession) return;
     final platform = defaultTargetPlatform == TargetPlatform.iOS
         ? 'ios'
         : defaultTargetPlatform == TargetPlatform.android
@@ -292,9 +300,28 @@ class PushNotificationService {
         },
       );
       debugPrint('FCM device registered platform=$platform');
+    } on ApiException catch (error) {
+      if (_isRejectedAccount(error)) {
+        debugPrint('FCM register device failed: ${error.message}');
+        await _rejectSession();
+        return;
+      }
+      debugPrint('FCM register device failed: $error');
     } catch (error, stack) {
       debugPrint('FCM register device failed: $error\n$stack');
     }
+  }
+
+  bool _isRejectedAccount(ApiException error) {
+    final message = error.message.toLowerCase();
+    return message.contains('session has been revoked') ||
+        message.contains('account is not active');
+  }
+
+  Future<void> _rejectSession() async {
+    if (_sessionRejected) return;
+    _sessionRejected = true;
+    await onSessionRejected?.call();
   }
 
   void _onForeground(RemoteMessage message) {
