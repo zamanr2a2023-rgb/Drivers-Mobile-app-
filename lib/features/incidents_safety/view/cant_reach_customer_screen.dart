@@ -257,8 +257,11 @@ class _CantReachCustomerScreenState extends State<CantReachCustomerScreen> {
                             fit: BoxFit.contain,
                             filterQuality: FilterQuality.high,
                           ),
-                          onPressed: () =>
-                              showIncidentSnack(context, 'Message sent'),
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            RouteNames.dispatchCantReachChat,
+                            arguments: widget.args,
+                          ),
                         ),
                       ),
                     ],
