@@ -79,8 +79,11 @@ class CantFindAddressScreen extends StatelessWidget {
                             fit: BoxFit.contain,
                             filterQuality: FilterQuality.high,
                           ),
-                          onPressed: () =>
-                              showIncidentSnack(context, 'Message sent'),
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            RouteNames.dispatchCantReachChat,
+                            arguments: args,
+                          ),
                         ),
                       ),
                     ],
